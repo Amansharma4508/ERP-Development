@@ -6,18 +6,25 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import {
   LayoutDashboard, HeartPulse, CalendarDays, Wallet, Stethoscope,
-  Package, ShoppingCart, BookOpen, Menu, LogOut, Cross, Loader2,
+  Package, ShoppingCart, BookOpen, Menu, LogOut, Cross,
+  Truck, Users, Warehouse, MapPin, ReceiptText,
 } from 'lucide-react';
 
 const NAV_ALL = [
-  { name: 'Dashboard',      href: '/dashboard',             Icon: LayoutDashboard, roles: ['user','doctor','admin'] },
-  { name: 'Health Records', href: '/dashboard/health',       Icon: HeartPulse,      roles: ['user','admin'] },
-  { name: 'Appointments',   href: '/dashboard/appointments', Icon: CalendarDays,    roles: ['user','doctor','admin'] },
-  { name: 'Wallet',         href: '/dashboard/wallet',       Icon: Wallet,          roles: ['user','admin'] },
-  { name: 'Doctors',        href: '/dashboard/doctors',      Icon: Stethoscope,     roles: ['user','admin'] },
-  { name: 'Inventory',      href: '/dashboard/inventory',    Icon: Package,         roles: ['doctor','admin'] },
-  { name: 'Orders',         href: '/dashboard/orders',       Icon: ShoppingCart,    roles: ['doctor','admin'] },
-  { name: 'Accounting',     href: '/dashboard/accounting',   Icon: BookOpen,        roles: ['admin'] },
+  { name: 'Dashboard',      href: '/dashboard',                      Icon: LayoutDashboard, roles: ['user','doctor','admin','logistics'] },
+  { name: 'Health Records', href: '/dashboard/health',                Icon: HeartPulse,      roles: ['user','admin'] },
+  { name: 'Appointments',   href: '/dashboard/appointments',          Icon: CalendarDays,    roles: ['user','doctor','admin'] },
+  { name: 'Wallet',         href: '/dashboard/wallet',                Icon: Wallet,          roles: ['user','admin'] },
+  { name: 'Doctors',        href: '/dashboard/doctors',               Icon: Stethoscope,     roles: ['user','admin'] },
+  { name: 'Inventory',      href: '/dashboard/inventory',             Icon: Package,         roles: ['doctor','admin'] },
+  { name: 'Orders',         href: '/dashboard/orders',                Icon: ShoppingCart,    roles: ['doctor','admin'] },
+  { name: 'Accounting',     href: '/dashboard/accounting',            Icon: BookOpen,        roles: ['admin'] },
+  // ── Logistics Panel ──────────────────────────────────────────────────────
+  { name: 'Shipments',      href: '/dashboard/logistics/shipments',   Icon: Truck,           roles: ['logistics','admin'] },
+  { name: 'Vendors',        href: '/dashboard/logistics/vendors',     Icon: Users,           roles: ['logistics','admin'] },
+  { name: 'Warehouses',     href: '/dashboard/logistics/warehouses',  Icon: Warehouse,       roles: ['logistics','admin'] },
+  { name: 'Team',           href: '/dashboard/logistics/team',        Icon: MapPin,          roles: ['logistics','admin'] },
+  { name: 'Funds Ledger',   href: '/dashboard/logistics/ledger',      Icon: ReceiptText,     roles: ['logistics','admin'] },
 ];
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -29,6 +36,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   useEffect(() => {
     if (!isLoading && !user) router.push('/login');
+    // Redirect logistics users to their dedicated home
+    if (!isLoading && user?.role === 'logistics') router.push('/dashboard/logistics');
   }, [user, isLoading, router]);
 
   useEffect(() => { setMobileOpen(false); }, [pathname]);
@@ -54,9 +63,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const navItems = NAV_ALL.filter((n) => n.roles.includes(user.role));
 
   const roleColors: Record<string, string> = {
-    user: 'bg-blue-100 text-blue-700',
-    doctor: 'bg-emerald-100 text-emerald-700',
-    admin: 'bg-violet-100 text-violet-700',
+    user:      'bg-blue-100 text-blue-700',
+    doctor:    'bg-emerald-100 text-emerald-700',
+    admin:     'bg-violet-100 text-violet-700',
+    logistics: 'bg-amber-100 text-amber-700',
   };
 
   const initials = user.fullName.split(' ').map((w) => w[0]).join('').slice(0, 2).toUpperCase();
@@ -74,7 +84,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
       {/* Nav */}
       <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-1">
-        {navItems.map((item) => {
+        {navItems.filter(n => !['Shipments','Vendors','Warehouses','Team','Funds Ledger'].includes(n.name)).map((item) => {
           const active = pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href));
           return (
             <Link key={item.href} href={item.href}
@@ -93,6 +103,26 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             </Link>
           );
         })}
+        {navItems.some(n => ['Shipments','Vendors','Warehouses','Team','Funds Ledger'].includes(n.name)) && (
+          <>
+            {!collapsed && <p className="text-xs font-semibold text-sidebar-foreground/40 uppercase tracking-widest px-3 pt-4 pb-1">Logistics</p>}
+            {navItems.filter(n => ['Shipments','Vendors','Warehouses','Team','Funds Ledger'].includes(n.name)).map((item) => {
+              const active = pathname === item.href || pathname.startsWith(item.href);
+              return (
+                <Link key={item.href} href={item.href}
+                  className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all font-medium text-sm
+                    ${active ? 'bg-amber-600/80 text-white shadow-sm' : 'text-sidebar-foreground hover:bg-amber-600/50 hover:text-white'}
+                    ${collapsed ? 'justify-center' : ''}`}
+                  title={collapsed ? item.name : undefined}
+                >
+                  <item.Icon size={18} className="flex-shrink-0" />
+                  {!collapsed && <span>{item.name}</span>}
+                  {active && !collapsed && <span className="ml-auto w-1.5 h-1.5 rounded-full bg-amber-300" />}
+                </Link>
+              );
+            })}
+          </>
+        )}
       </nav>
 
       {/* User footer */}

@@ -4,12 +4,13 @@ import { useState } from 'react';
 import { useAuth } from '@/lib/auth-context';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { User, Stethoscope, ShieldCheck, Cross, AlertCircle, Check } from 'lucide-react';
+import { User, Stethoscope, ShieldCheck, Cross, AlertCircle, Check, Truck } from 'lucide-react';
 
 const DEMO_ACCOUNTS = [
-  { email: 'user@example.com', password: 'password123', role: 'User', Icon: User },
-  { email: 'doctor@example.com', password: 'password123', role: 'Doctor', Icon: Stethoscope },
-  { email: 'admin@example.com', password: 'password123', role: 'Admin', Icon: ShieldCheck },
+  { email: 'user@example.com',      password: 'password123', role: 'User',      Icon: User       },
+  { email: 'doctor@example.com',    password: 'password123', role: 'Doctor',    Icon: Stethoscope},
+  { email: 'admin@example.com',     password: 'password123', role: 'Admin',     Icon: ShieldCheck},
+  { email: 'logistics@example.com', password: 'password123', role: 'Logistics', Icon: Truck      },
 ];
 
 export default function LoginPage() {

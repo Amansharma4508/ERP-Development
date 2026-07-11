@@ -250,3 +250,266 @@ export const accountingTransactions: AccountingTransaction[] = [
   { id: 'acc5', transactionId: 'TXN-005', type: 'income', category: 'Consultation', amount: 4200, description: 'July consultations revenue', date: '2025-07-07', reference: 'INV-2025-003' },
   { id: 'acc6', transactionId: 'TXN-006', type: 'expense', category: 'Salary', amount: 8000, description: 'Staff salary - June', date: '2025-06-30' },
 ];
+
+// ════════════════════════════════════════════════════════════════════════════
+// LOGISTICS & SUPPLY CHAIN — Panel C (Project Swabhiman Blueprint)
+// ════════════════════════════════════════════════════════════════════════════
+
+export interface LogisticsUser {
+  id: string;
+  email: string;
+  password: string;
+  fullName: string;
+  role: 'logistics';
+  pointId: string;   // e.g. S1 / S2 / S3 / DHS
+  area: string;
+  block: string;
+  district: string;
+  zone: string;
+  createdAt: string;
+}
+
+export type ShipmentStatus = 'po_received' | 'prep' | 'in_transit' | 'delivered' | 'cancelled';
+
+export interface Shipment {
+  id: string;
+  shipmentId: string;
+  vendorId: string;
+  vendorName: string;
+  fromLocation: string;
+  toLocation: string;       // Point / Center / Customer
+  toType: 'point' | 'center' | 'customer';
+  items: { itemName: string; quantity: number; unit: string }[];
+  status: ShipmentStatus;
+  carrierName: string;
+  trackingNumber: string;
+  dispatchDate: string;
+  expectedDelivery: string;
+  actualDelivery?: string;
+  totalValue: number;
+  createdAt: string;
+}
+
+export interface Vendor {
+  id: string;
+  vendorId: string;
+  name: string;
+  category: string;         // 1-15 per blueprint
+  categoryName: string;
+  contactPerson: string;
+  email: string;
+  phone: string;
+  address: string;
+  area: string;
+  gstNo: string;
+  licenseNo: string;
+  paymentTerms: string;
+  creditDays: number;
+  rating: number;
+  supplyStatus: 'active' | 'inactive' | 'suspended';
+  totalOrders: number;
+  paidAmount: number;
+  dueAmount: number;
+  createdAt: string;
+}
+
+export interface Warehouse {
+  id: string;
+  name: string;
+  pointId: string;   // S1 / S2 / S3 / DHS
+  area: string;
+  block: string;
+  district: string;
+  zone: string;
+  totalCapacity: number;
+  usedCapacity: number;
+  managerName: string;
+  phone: string;
+  stock: { itemName: string; sku: string; quantity: number; unit: string; lastUpdated: string }[];
+}
+
+export interface LogisticsTeamMember {
+  id: string;
+  name: string;
+  role: 'ward_boy' | 'nurse' | 'junior' | 'driver' | 'manager';
+  pointId: string;
+  area: string;
+  phone: string;
+  status: 'active' | 'on_leave' | 'inactive';
+  joiningDate: string;
+}
+
+export interface DebitCredit {
+  id: string;
+  type: 'debit' | 'credit';
+  category: 'supplier' | 'freight' | 'center' | 'customer' | 'refund' | 'maintenance';
+  amount: number;
+  description: string;
+  reference: string;
+  date: string;
+}
+
+// ── Logistics Users ───────────────────────────────────────────────────────────
+export const logisticsUsers: LogisticsUser[] = [
+  {
+    id: 'lg1', email: 'logistics@example.com', password: 'password123',
+    fullName: 'Rajesh Kumar', role: 'logistics',
+    pointId: 'S1', area: 'North Zone', block: 'Block-A',
+    district: 'Delhi', zone: 'Zone-1', createdAt: '2024-01-05',
+  },
+];
+
+// ── Shipments ─────────────────────────────────────────────────────────────────
+export const shipments: Shipment[] = [
+  {
+    id: 'sh1', shipmentId: 'SHP-2025-001', vendorId: 'v1', vendorName: 'PharmaCo',
+    fromLocation: 'PharmaCo Warehouse, Mumbai',
+    toLocation: 'S1 Center, Delhi', toType: 'center',
+    items: [
+      { itemName: 'Paracetamol 500mg', quantity: 500, unit: 'strips' },
+      { itemName: 'Insulin Syringes', quantity: 200, unit: 'pcs' },
+    ],
+    status: 'delivered', carrierName: 'BlueDart',
+    trackingNumber: 'BD-9923411', dispatchDate: '2025-06-28',
+    expectedDelivery: '2025-07-01', actualDelivery: '2025-07-01',
+    totalValue: 4500, createdAt: '2025-06-25',
+  },
+  {
+    id: 'sh2', shipmentId: 'SHP-2025-002', vendorId: 'v2', vendorName: 'MediSupply',
+    fromLocation: 'MediSupply Hub, Pune',
+    toLocation: 'S2 Center, Noida', toType: 'center',
+    items: [
+      { itemName: 'Surgical Gloves', quantity: 100, unit: 'boxes' },
+      { itemName: 'Face Masks', quantity: 200, unit: 'boxes' },
+    ],
+    status: 'in_transit', carrierName: 'DTDC',
+    trackingNumber: 'DTDC-7841922', dispatchDate: '2025-07-04',
+    expectedDelivery: '2025-07-10', totalValue: 3200, createdAt: '2025-07-01',
+  },
+  {
+    id: 'sh3', shipmentId: 'SHP-2025-003', vendorId: 'v3', vendorName: 'TechMed',
+    fromLocation: 'TechMed Factory, Hyderabad',
+    toLocation: 'DHS Point, Gurugram', toType: 'point',
+    items: [{ itemName: 'Blood Pressure Monitor', quantity: 10, unit: 'units' }],
+    status: 'prep', carrierName: 'FedEx',
+    trackingNumber: 'FX-4412098', dispatchDate: '2025-07-08',
+    expectedDelivery: '2025-07-12', totalValue: 8500, createdAt: '2025-07-05',
+  },
+  {
+    id: 'sh4', shipmentId: 'SHP-2025-004', vendorId: 'v1', vendorName: 'PharmaCo',
+    fromLocation: 'PharmaCo Warehouse, Mumbai',
+    toLocation: 'S3 Center, Faridabad', toType: 'center',
+    items: [{ itemName: 'Vitamin D Capsules', quantity: 1000, unit: 'strips' }],
+    status: 'po_received', carrierName: 'Delhivery',
+    trackingNumber: 'DLV-5523109', dispatchDate: '2025-07-12',
+    expectedDelivery: '2025-07-16', totalValue: 2100, createdAt: '2025-07-08',
+  },
+  {
+    id: 'sh5', shipmentId: 'SHP-2025-005', vendorId: 'v4', vendorName: 'LabEquip Co',
+    fromLocation: 'LabEquip Co, Chennai',
+    toLocation: 'Customer: City Hospital', toType: 'customer',
+    items: [{ itemName: 'Lab Test Kit', quantity: 50, unit: 'kits' }],
+    status: 'cancelled', carrierName: 'Ekart',
+    trackingNumber: 'EK-1190234', dispatchDate: '2025-06-20',
+    expectedDelivery: '2025-06-25', totalValue: 1800, createdAt: '2025-06-18',
+  },
+];
+
+// ── Vendors ───────────────────────────────────────────────────────────────────
+export const vendors: Vendor[] = [
+  {
+    id: 'v1', vendorId: 'VND-001', name: 'PharmaCo', category: '2', categoryName: 'Medical Supply',
+    contactPerson: 'Anil Sharma', email: 'anil@pharmaco.com', phone: '9811234567',
+    address: 'MIDC, Andheri East, Mumbai', area: 'Mumbai', gstNo: '27AABCU9603R1ZM',
+    licenseNo: 'LIC-PH-2024-001', paymentTerms: 'Net 30', creditDays: 30,
+    rating: 4.7, supplyStatus: 'active', totalOrders: 48,
+    paidAmount: 120000, dueAmount: 15000, createdAt: '2024-01-10',
+  },
+  {
+    id: 'v2', vendorId: 'VND-002', name: 'MediSupply', category: '2', categoryName: 'Medical Supply',
+    contactPerson: 'Priya Patel', email: 'priya@medisupply.com', phone: '9922345678',
+    address: 'Pimpri, Pune', area: 'Pune', gstNo: '27AABCM7823R1ZP',
+    licenseNo: 'LIC-MS-2024-002', paymentTerms: 'Net 15', creditDays: 15,
+    rating: 4.5, supplyStatus: 'active', totalOrders: 32,
+    paidAmount: 80000, dueAmount: 8000, createdAt: '2024-02-01',
+  },
+  {
+    id: 'v3', vendorId: 'VND-003', name: 'TechMed', category: '4', categoryName: 'Medical Equipment',
+    contactPerson: 'Suresh Reddy', email: 'suresh@techmed.com', phone: '9844556677',
+    address: 'Hitech City, Hyderabad', area: 'Hyderabad', gstNo: '36AABCT1234R1ZT',
+    licenseNo: 'LIC-EQ-2024-003', paymentTerms: 'Net 45', creditDays: 45,
+    rating: 4.8, supplyStatus: 'active', totalOrders: 15,
+    paidAmount: 250000, dueAmount: 42000, createdAt: '2024-01-20',
+  },
+  {
+    id: 'v4', vendorId: 'VND-004', name: 'LabEquip Co', category: '4', categoryName: 'Medical Equipment',
+    contactPerson: 'Kavitha Nair', email: 'kavitha@labequip.com', phone: '9966778899',
+    address: 'Anna Nagar, Chennai', area: 'Chennai', gstNo: '33AABCL4567R1ZL',
+    licenseNo: 'LIC-LB-2024-004', paymentTerms: 'Net 30', creditDays: 30,
+    rating: 3.9, supplyStatus: 'inactive', totalOrders: 8,
+    paidAmount: 35000, dueAmount: 0, createdAt: '2024-03-15',
+  },
+  {
+    id: 'v5', vendorId: 'VND-005', name: 'SwiftMove Logistics', category: '5', categoryName: 'Transport & Logistics',
+    contactPerson: 'Ravi Singh', email: 'ravi@swiftmove.com', phone: '9877665544',
+    address: 'Sector 18, Noida', area: 'Noida', gstNo: '09AABCS8901R1ZS',
+    licenseNo: 'LIC-TR-2024-005', paymentTerms: 'Net 7', creditDays: 7,
+    rating: 4.6, supplyStatus: 'active', totalOrders: 64,
+    paidAmount: 95000, dueAmount: 5500, createdAt: '2024-01-08',
+  },
+];
+
+// ── Warehouses ────────────────────────────────────────────────────────────────
+export const warehouses: Warehouse[] = [
+  {
+    id: 'wh1', name: 'S1 Main Warehouse', pointId: 'S1',
+    area: 'North Delhi', block: 'Block-A', district: 'Delhi', zone: 'Zone-1',
+    totalCapacity: 5000, usedCapacity: 3200,
+    managerName: 'Ramesh Kumar', phone: '9812345670',
+    stock: [
+      { itemName: 'Paracetamol 500mg', sku: 'MED-001', quantity: 500, unit: 'strips', lastUpdated: '2025-07-01' },
+      { itemName: 'Surgical Gloves', sku: 'SUP-001', quantity: 45, unit: 'boxes', lastUpdated: '2025-07-02' },
+      { itemName: 'Face Masks', sku: 'SUP-002', quantity: 200, unit: 'boxes', lastUpdated: '2025-07-03' },
+    ],
+  },
+  {
+    id: 'wh2', name: 'S2 Distribution Hub', pointId: 'S2',
+    area: 'Noida', block: 'Block-B', district: 'Gautam Buddha Nagar', zone: 'Zone-2',
+    totalCapacity: 3000, usedCapacity: 1800,
+    managerName: 'Sita Devi', phone: '9823456781',
+    stock: [
+      { itemName: 'Insulin Syringes', sku: 'MED-002', quantity: 150, unit: 'pcs', lastUpdated: '2025-07-01' },
+      { itemName: 'Blood Pressure Monitor', sku: 'EQP-001', quantity: 8, unit: 'units', lastUpdated: '2025-06-30' },
+    ],
+  },
+  {
+    id: 'wh3', name: 'DHS Point Storage', pointId: 'DHS',
+    area: 'Gurugram', block: 'Block-C', district: 'Gurugram', zone: 'Zone-3',
+    totalCapacity: 2000, usedCapacity: 900,
+    managerName: 'Mohan Lal', phone: '9834567892',
+    stock: [
+      { itemName: 'Stethoscope', sku: 'EQP-002', quantity: 8, unit: 'units', lastUpdated: '2025-06-25' },
+      { itemName: 'Vitamin D Capsules', sku: 'MED-003', quantity: 300, unit: 'strips', lastUpdated: '2025-07-06' },
+    ],
+  },
+];
+
+// ── Team Members ──────────────────────────────────────────────────────────────
+export const logisticsTeam: LogisticsTeamMember[] = [
+  { id: 'tm1', name: 'Sunil Yadav',    role: 'driver',   pointId: 'S1', area: 'North Delhi',  phone: '9811100001', status: 'active',    joiningDate: '2023-06-01' },
+  { id: 'tm2', name: 'Meena Gupta',    role: 'nurse',    pointId: 'S1', area: 'North Delhi',  phone: '9811100002', status: 'active',    joiningDate: '2023-08-15' },
+  { id: 'tm3', name: 'Ramu Das',       role: 'ward_boy', pointId: 'S2', area: 'Noida',        phone: '9811100003', status: 'on_leave',  joiningDate: '2024-01-10' },
+  { id: 'tm4', name: 'Anita Singh',    role: 'junior',   pointId: 'S2', area: 'Noida',        phone: '9811100004', status: 'active',    joiningDate: '2024-03-20' },
+  { id: 'tm5', name: 'Vikas Sharma',   role: 'manager',  pointId: 'DHS',area: 'Gurugram',     phone: '9811100005', status: 'active',    joiningDate: '2023-05-01' },
+  { id: 'tm6', name: 'Pooja Verma',    role: 'nurse',    pointId: 'DHS',area: 'Gurugram',     phone: '9811100006', status: 'inactive',  joiningDate: '2023-09-01' },
+];
+
+// ── Funds Ledger (Debit / Credit) ─────────────────────────────────────────────
+export const logisticsLedger: DebitCredit[] = [
+  { id: 'll1', type: 'debit',  category: 'supplier', amount: 15000, description: 'PharmaCo invoice payment', reference: 'INV-PC-2025-06', date: '2025-07-01' },
+  { id: 'll2', type: 'credit', category: 'center',   amount: 18000, description: 'S1 Center stock delivery income', reference: 'DEL-S1-2025-001', date: '2025-07-02' },
+  { id: 'll3', type: 'debit',  category: 'freight',  amount: 2200,  description: 'BlueDart freight charges', reference: 'BD-9923411', date: '2025-07-01' },
+  { id: 'll4', type: 'credit', category: 'customer', amount: 8500,  description: 'City Hospital equipment payment', reference: 'SHP-2025-003', date: '2025-07-05' },
+  { id: 'll5', type: 'debit',  category: 'maintenance', amount: 3500, description: 'Vehicle maintenance - Truck DL01', reference: 'MNT-2025-07', date: '2025-07-06' },
+  { id: 'll6', type: 'debit',  category: 'supplier', amount: 8000,  description: 'MediSupply partial payment', reference: 'INV-MS-2025-07', date: '2025-07-07' },
+];

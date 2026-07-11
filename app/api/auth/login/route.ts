@@ -2,14 +2,17 @@ import { NextRequest } from 'next/server';
 import { generateToken } from '@/lib/auth';
 import { LoginSchema } from '@/lib/schemas';
 import { successResponse, errorResponse, toJson } from '@/lib/api-utils';
-import { users } from '@/lib/store';
+import { users, logisticsUsers } from '@/lib/store';
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const validatedData = LoginSchema.parse(body);
 
-    const user = users.find((u) => u.email === validatedData.email);
+    // check regular users first, then logistics users
+    const user = users.find((u) => u.email === validatedData.email)
+      ?? logisticsUsers.find((u) => u.email === validatedData.email);
+
     if (!user || user.password !== validatedData.password) {
       return toJson(errorResponse('Invalid email or password', 401));
     }

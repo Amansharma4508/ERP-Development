@@ -4,12 +4,13 @@ import { useState } from 'react';
 import { useAuth } from '@/lib/auth-context';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { User, Stethoscope, ShieldCheck, Cross, AlertCircle } from 'lucide-react';
+import { User, Stethoscope, ShieldCheck, Cross, AlertCircle, Truck } from 'lucide-react';
 
 const ROLES = [
-  { value: 'user', label: 'Patient', Icon: User, desc: 'Book appointments, track health records' },
-  { value: 'doctor', label: 'Doctor', Icon: Stethoscope, desc: 'Manage appointments and patients' },
-  { value: 'admin', label: 'Admin', Icon: ShieldCheck, desc: 'Full system access and management' },
+  { value: 'user',      label: 'Patient',   Icon: User,       desc: 'Book appointments, track health records' },
+  { value: 'doctor',    label: 'Doctor',    Icon: Stethoscope,desc: 'Manage appointments and patients' },
+  { value: 'admin',     label: 'Admin',     Icon: ShieldCheck,desc: 'Full system access and management' },
+  { value: 'logistics', label: 'Logistics', Icon: Truck,      desc: 'Supply chain and shipment tracking' },
 ];
 
 export default function RegisterPage() {
