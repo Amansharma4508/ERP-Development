@@ -513,3 +513,355 @@ export const logisticsLedger: DebitCredit[] = [
   { id: 'll5', type: 'debit',  category: 'maintenance', amount: 3500, description: 'Vehicle maintenance - Truck DL01', reference: 'MNT-2025-07', date: '2025-07-06' },
   { id: 'll6', type: 'debit',  category: 'supplier', amount: 8000,  description: 'MediSupply partial payment', reference: 'INV-MS-2025-07', date: '2025-07-07' },
 ];
+
+// ════════════════════════════════════════════════════════════════════════════
+// E-MEDICINE & PHARMACY
+// ════════════════════════════════════════════════════════════════════════════
+export interface PharmacyOrder {
+  id: string;
+  orderId: string;
+  userId: string;
+  userName: string;
+  medicines: { name: string; quantity: number; price: number }[];
+  deliveryType: '30min' | '24hr' | '72hr';
+  deliveryMode: 'cod' | 'wallet' | 'walk_in';
+  centerName: string;
+  address: string;
+  status: 'pending' | 'confirmed' | 'dispatched' | 'delivered' | 'cancelled';
+  totalAmount: number;
+  prescriptionRequired: boolean;
+  createdAt: string;
+}
+
+export const pharmacyOrders: PharmacyOrder[] = [
+  {
+    id: 'po1', orderId: 'PHARM-001', userId: '1', userName: 'John Carter',
+    medicines: [{ name: 'Paracetamol 500mg', quantity: 2, price: 45 }, { name: 'Vitamin D3', quantity: 1, price: 120 }],
+    deliveryType: '30min', deliveryMode: 'wallet', centerName: 'S1 Center, Delhi',
+    address: '12, Lajpat Nagar, Delhi', status: 'delivered', totalAmount: 210,
+    prescriptionRequired: false, createdAt: '2025-07-05',
+  },
+  {
+    id: 'po2', orderId: 'PHARM-002', userId: '1', userName: 'John Carter',
+    medicines: [{ name: 'Metformin 500mg', quantity: 1, price: 180 }],
+    deliveryType: '24hr', deliveryMode: 'cod', centerName: 'Hub Center, Noida',
+    address: '45, Sector 18, Noida', status: 'dispatched', totalAmount: 180,
+    prescriptionRequired: true, createdAt: '2025-07-08',
+  },
+];
+
+// ════════════════════════════════════════════════════════════════════════════
+// YOUR DOCTOR & CARE
+// ════════════════════════════════════════════════════════════════════════════
+export interface CareBooking {
+  id: string;
+  userId: string;
+  type: 'tele_visit' | 'center_visit' | 'home_collection' | 'lab_test' | 'therapy' | 'home_nurse' | 'counselor';
+  doctorName: string;
+  centerName?: string;
+  scheduledDate: string;
+  scheduledTime: string;
+  status: 'scheduled' | 'confirmed' | 'completed' | 'cancelled';
+  notes: string;
+  fee: number;
+  createdAt: string;
+}
+
+export const careBookings: CareBooking[] = [
+  {
+    id: 'cb1', userId: '1', type: 'tele_visit', doctorName: 'Dr. Sarah Smith',
+    scheduledDate: '2025-07-15', scheduledTime: '10:00', status: 'confirmed',
+    notes: 'Follow-up on BP medication', fee: 150, createdAt: '2025-07-10',
+  },
+  {
+    id: 'cb2', userId: '1', type: 'home_collection', doctorName: 'Lab Technician',
+    centerName: 'S1 Diagnostic Center', scheduledDate: '2025-07-16', scheduledTime: '07:00',
+    status: 'scheduled', notes: 'Fasting blood sugar test', fee: 250, createdAt: '2025-07-10',
+  },
+];
+
+// ════════════════════════════════════════════════════════════════════════════
+// HEAL CENTRE (SUPPORT)
+// ════════════════════════════════════════════════════════════════════════════
+export interface SupportTicket {
+  id: string;
+  ticketId: string;
+  userId: string;
+  userName: string;
+  type: 'complaint' | 'query' | 'feedback';
+  subject: string;
+  description: string;
+  status: 'open' | 'in_progress' | 'resolved' | 'closed';
+  priority: 'low' | 'medium' | 'high';
+  assignedTo?: string;
+  response?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export const supportTickets: SupportTicket[] = [
+  {
+    id: 'st1', ticketId: 'TKT-001', userId: '1', userName: 'John Carter',
+    type: 'complaint', subject: 'Appointment not confirmed', priority: 'high',
+    description: 'Booked appointment on July 10 but did not receive confirmation.',
+    status: 'resolved', assignedTo: 'Support Team',
+    response: 'Appointment confirmed. Sorry for the delay.',
+    createdAt: '2025-07-08', updatedAt: '2025-07-09',
+  },
+  {
+    id: 'st2', ticketId: 'TKT-002', userId: '1', userName: 'John Carter',
+    type: 'query', subject: 'Wallet top-up not reflecting', priority: 'medium',
+    description: 'Added ₹500 to wallet but balance not updated.',
+    status: 'in_progress', createdAt: '2025-07-09', updatedAt: '2025-07-09',
+  },
+];
+
+// ════════════════════════════════════════════════════════════════════════════
+// EARN & ENJOY SYSTEM
+// ════════════════════════════════════════════════════════════════════════════
+export interface EarnActivity {
+  id: string;
+  userId: string;
+  type: 'watch_ad' | 'referral' | 'volunteering';
+  description: string;
+  pointsEarned: number;
+  status: 'pending' | 'credited';
+  createdAt: string;
+}
+
+export const earnActivities: EarnActivity[] = [
+  { id: 'ea1', userId: '1', type: 'referral', description: 'Referred Amit Kumar', pointsEarned: 200, status: 'credited', createdAt: '2025-07-01' },
+  { id: 'ea2', userId: '1', type: 'watch_ad', description: 'Watched HealthCare Ad #1', pointsEarned: 10, status: 'credited', createdAt: '2025-07-02' },
+  { id: 'ea3', userId: '1', type: 'volunteering', description: 'Blood Donation Camp', pointsEarned: 500, status: 'pending', createdAt: '2025-07-05' },
+];
+
+// ════════════════════════════════════════════════════════════════════════════
+// MULTI-DEMOGRAPHICS
+// ════════════════════════════════════════════════════════════════════════════
+export interface Demographics {
+  userId: string;
+  family: { bioType: string; tribe: string; community: string };
+  environment: { waterQuality: string; aqiLevel: string; industryNearby: string };
+  financial: { category: 'ultra_luxury' | 'luxury' | 'middle' | 'low' | 'bpl' };
+  social: { traumaHistory: string; narcoticExposure: string };
+}
+
+export const demographics: Demographics[] = [
+  {
+    userId: '1',
+    family: { bioType: 'Nuclear', tribe: 'General', community: 'Urban' },
+    environment: { waterQuality: 'Treated Municipal', aqiLevel: 'Moderate (AQI 120)', industryNearby: 'None' },
+    financial: { category: 'middle' },
+    social: { traumaHistory: 'None reported', narcoticExposure: 'None' },
+  },
+];
+
+// ════════════════════════════════════════════════════════════════════════════
+// DOCTOR PANEL — ADDITIONAL MODULES
+// ════════════════════════════════════════════════════════════════════════════
+
+export interface DoctorTask {
+  id: string;
+  doctorId: string;
+  title: string;
+  type: 'appointment' | 'report' | 'follow_up' | 'admin';
+  priority: 'low' | 'medium' | 'high';
+  dueDate: string;
+  status: 'pending' | 'in_progress' | 'done';
+  notes: string;
+  createdAt: string;
+}
+
+export const doctorTasks: DoctorTask[] = [
+  { id: 'dt1', doctorId: 'd1', title: 'Review John Carter blood report', type: 'report', priority: 'high', dueDate: '2025-07-12', status: 'pending', notes: 'CBC results from June 15', createdAt: '2025-07-10' },
+  { id: 'dt2', doctorId: 'd1', title: 'Follow up with hypertension patients', type: 'follow_up', priority: 'medium', dueDate: '2025-07-14', status: 'in_progress', notes: '3 patients due for monthly check', createdAt: '2025-07-08' },
+  { id: 'dt3', doctorId: 'd1', title: 'Complete monthly performance report', type: 'admin', priority: 'low', dueDate: '2025-07-31', status: 'pending', notes: '', createdAt: '2025-07-01' },
+];
+
+export interface DoctorRemark {
+  id: string;
+  doctorId: string;
+  to: 'management' | 'patient' | 'team' | 'self';
+  subject: string;
+  body: string;
+  patientName?: string;
+  createdAt: string;
+}
+
+export const doctorRemarks: DoctorRemark[] = [
+  { id: 'dr1', doctorId: 'd1', to: 'patient', subject: 'Post consultation notes', body: 'Continue medication for 2 weeks. Avoid salt intake.', patientName: 'John Carter', createdAt: '2025-07-05' },
+  { id: 'dr2', doctorId: 'd1', to: 'management', subject: 'Equipment request', body: 'Cardiology ward needs a new ECG machine urgently.', createdAt: '2025-07-08' },
+  { id: 'dr3', doctorId: 'd1', to: 'self', subject: 'Reminder', body: 'Check AHA guidelines update for hypertension 2025.', createdAt: '2025-07-09' },
+];
+
+export interface LeaveRequest {
+  id: string;
+  doctorId: string;
+  leaveType: 'casual' | 'medical' | 'annual' | 'leisure';
+  fromDate: string;
+  toDate: string;
+  reason: string;
+  status: 'pending' | 'approved' | 'rejected';
+  createdAt: string;
+}
+
+export const leaveRequests: LeaveRequest[] = [
+  { id: 'lr1', doctorId: 'd1', leaveType: 'annual', fromDate: '2025-08-01', toDate: '2025-08-05', reason: 'Family vacation', status: 'approved', createdAt: '2025-07-01' },
+  { id: 'lr2', doctorId: 'd1', leaveType: 'casual', fromDate: '2025-07-20', toDate: '2025-07-20', reason: 'Personal work', status: 'pending', createdAt: '2025-07-09' },
+];
+
+export interface DoctorAssistant {
+  id: string;
+  doctorId: string;
+  name: string;
+  role: 'ward_boy' | 'nurse' | 'junior';
+  phone: string;
+  schedule: string;
+  status: 'active' | 'inactive';
+}
+
+export const doctorAssistants: DoctorAssistant[] = [
+  { id: 'da1', doctorId: 'd1', name: 'Meena Gupta', role: 'nurse', phone: '9811100002', schedule: 'Mon-Fri 9AM-5PM', status: 'active' },
+  { id: 'da2', doctorId: 'd1', name: 'Ramu Das', role: 'ward_boy', phone: '9811100003', schedule: 'Mon-Sat 8AM-4PM', status: 'active' },
+  { id: 'da3', doctorId: 'd1', name: 'Priya Rao', role: 'junior', phone: '9811100010', schedule: 'Tue-Sat 10AM-6PM', status: 'active' },
+];
+
+export interface TimeSlot {
+  id: string;
+  doctorId: string;
+  date: string;
+  time: string;
+  type: 'online' | 'offline' | 'surgery';
+  status: 'available' | 'booked' | 'blocked';
+  patientName?: string;
+}
+
+export const timeSlots: TimeSlot[] = [
+  { id: 'ts1', doctorId: 'd1', date: '2025-07-15', time: '09:00', type: 'online', status: 'booked', patientName: 'John Carter' },
+  { id: 'ts2', doctorId: 'd1', date: '2025-07-15', time: '10:00', type: 'offline', status: 'available' },
+  { id: 'ts3', doctorId: 'd1', date: '2025-07-15', time: '11:00', type: 'offline', status: 'booked', patientName: 'Amit Sharma' },
+  { id: 'ts4', doctorId: 'd1', date: '2025-07-15', time: '14:00', type: 'surgery', status: 'blocked' },
+  { id: 'ts5', doctorId: 'd1', date: '2025-07-16', time: '09:00', type: 'online', status: 'available' },
+  { id: 'ts6', doctorId: 'd1', date: '2025-07-16', time: '10:00', type: 'online', status: 'available' },
+];
+
+export interface DoctorReport {
+  id: string;
+  doctorId: string;
+  patientName: string;
+  reportType: 'patient' | 'lab' | 'sample';
+  title: string;
+  findings: string;
+  date: string;
+  status: 'draft' | 'final';
+}
+
+export const doctorReportsList: DoctorReport[] = [
+  { id: 'drp1', doctorId: 'd1', patientName: 'John Carter', reportType: 'lab', title: 'CBC Report Review', findings: 'All values within normal range. Hemoglobin slightly low at 11.8.', date: '2025-07-08', status: 'final' },
+  { id: 'drp2', doctorId: 'd1', patientName: 'Sunita Devi', reportType: 'patient', title: 'Hypertension Follow-up', findings: 'BP stabilized at 130/85. Continue current medication.', date: '2025-07-05', status: 'final' },
+  { id: 'drp3', doctorId: 'd1', patientName: 'Rahul Mehta', reportType: 'sample', title: 'Blood Sample Analysis', findings: 'Elevated LDL cholesterol. Recommend dietary changes and statins.', date: '2025-07-09', status: 'draft' },
+];
+
+// ════════════════════════════════════════════════════════════════════════════
+// VIRTUAL WALLET CREDIT & FUND ALLOCATION (Section D)
+// ════════════════════════════════════════════════════════════════════════════
+export interface VirtualWalletAccount {
+  userId: string;
+  cardNumber: string;
+  stateWalletBalance: number;
+  masterLedgerBalance: number;
+  activationDate: string;
+  status: 'active' | 'pending' | 'suspended';
+  offlineBalance: number;
+  onlineBalance: number;
+}
+
+export const virtualWalletAccounts: VirtualWalletAccount[] = [
+  {
+    userId: '1', cardNumber: 'SWAB-1001-2025', stateWalletBalance: 35000,
+    masterLedgerBalance: 35000, activationDate: '2025-01-15',
+    status: 'active', offlineBalance: 20000, onlineBalance: 15000,
+  },
+];
+
+export interface WalletLedgerEntry {
+  id: string;
+  userId: string;
+  mode: 'offline' | 'online';
+  type: 'debit' | 'credit';
+  amount: number;
+  description: string;
+  centerName?: string;
+  creditNoteRef?: string;
+  transactionRef: string;
+  date: string;
+}
+
+export const walletLedgerEntries: WalletLedgerEntry[] = [
+  { id: 'wle1', userId: '1', mode: 'offline', type: 'debit', amount: 500, description: 'S1 Center - OPD Consultation', centerName: 'S1 Center Delhi', transactionRef: 'TXN-OFF-001', date: '2025-07-01' },
+  { id: 'wle2', userId: '1', mode: 'online', type: 'debit', amount: 150, description: 'Teleconsult - Dr. Sarah Smith', creditNoteRef: 'CN-001', transactionRef: 'TXN-ONL-001', date: '2025-07-05' },
+  { id: 'wle3', userId: '1', mode: 'online', type: 'credit', amount: 1000, description: 'State Wallet top-up', transactionRef: 'TXN-CR-001', date: '2025-06-28' },
+];
+
+// ════════════════════════════════════════════════════════════════════════════
+// CENTER REGISTRATION & APP DASHBOARD ECOSYSTEM (Section E)
+// ════════════════════════════════════════════════════════════════════════════
+export interface CenterRegistration {
+  id: string;
+  centerId: string;
+  name: string;
+  ownerName: string;
+  idNo: string;
+  state: string;
+  district: string;
+  block: string;
+  village: string;
+  ward: string;
+  busStop: string;
+  contactMobile: string;
+  centerModel: 'S1' | 'S2' | 'S3';
+  status: 'enquiry' | 'proposal' | 'verification' | 'approved' | 'live';
+  // Infrastructure
+  roadAccess: string;
+  propertyDetails: string;
+  totalArea: number;
+  buildingType: string;
+  // Environmental
+  weatherData: string;
+  sewageCondition: string;
+  aqiLevel: string;
+  waterPlantStatus: string;
+  waterLogHistory: string;
+  // Health Complexity
+  nearbyMedicalStores: number;
+  nearestHospitalDistance: number;
+  hospitalTierType: string;
+  createdAt: string;
+}
+
+export const centerRegistrations: CenterRegistration[] = [
+  {
+    id: 'cr1', centerId: 'CTR-S1-001', name: 'Swabhiman Health Center Delhi',
+    ownerName: 'Ramesh Gupta', idNo: 'AADH-1234-5678', state: 'Delhi',
+    district: 'Central Delhi', block: 'Karol Bagh', village: 'N/A',
+    ward: 'Ward 12', busStop: 'Karol Bagh Metro', contactMobile: '9811000001',
+    centerModel: 'S1', status: 'live',
+    roadAccess: 'Paved Road', propertyDetails: 'Ground Floor Commercial', totalArea: 1200, buildingType: 'RCC',
+    weatherData: 'Hot Semi-Arid', sewageCondition: 'Municipal Sewage', aqiLevel: '145 (Unhealthy)',
+    waterPlantStatus: 'Operational', waterLogHistory: 'No flooding history',
+    nearbyMedicalStores: 5, nearestHospitalDistance: 1.2, hospitalTierType: 'Tier-1',
+    createdAt: '2024-06-01',
+  },
+  {
+    id: 'cr2', centerId: 'CTR-S2-001', name: 'Swabhiman Center Noida',
+    ownerName: 'Priya Sharma', idNo: 'AADH-8765-4321', state: 'Uttar Pradesh',
+    district: 'Gautam Buddha Nagar', block: 'Sector 18', village: 'N/A',
+    ward: 'Ward 5', busStop: 'Sector 18 Metro', contactMobile: '9922000002',
+    centerModel: 'S2', status: 'approved',
+    roadAccess: 'Paved Road', propertyDetails: 'First Floor Commercial', totalArea: 800, buildingType: 'RCC',
+    weatherData: 'Hot Semi-Arid', sewageCondition: 'Municipal Sewage', aqiLevel: '110 (Moderate)',
+    waterPlantStatus: 'Operational', waterLogHistory: 'Minor flooding 2023',
+    nearbyMedicalStores: 3, nearestHospitalDistance: 2.5, hospitalTierType: 'Tier-2',
+    createdAt: '2024-09-15',
+  },
+];
