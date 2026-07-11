@@ -7,7 +7,7 @@ import Link from 'next/link';
 import {
   LayoutDashboard, HeartPulse, CalendarDays, Wallet, Stethoscope,
   Package, ShoppingCart, BookOpen, Menu, LogOut, Cross,
-  Truck, Users, Warehouse, MapPin, ReceiptText,
+  Truck, Users, Warehouse, MapPin, ReceiptText, LayoutGrid,
 } from 'lucide-react';
 
 const NAV_ALL = [
@@ -19,6 +19,7 @@ const NAV_ALL = [
   { name: 'Inventory',      href: '/dashboard/inventory',             Icon: Package,         roles: ['doctor','admin'] },
   { name: 'Orders',         href: '/dashboard/orders',                Icon: ShoppingCart,    roles: ['doctor','admin'] },
   { name: 'Accounting',     href: '/dashboard/accounting',            Icon: BookOpen,        roles: ['admin'] },
+  { name: 'Wallet Control', href: '/dashboard/wallet-dashboard',      Icon: LayoutGrid,      roles: ['admin'] },
   // ── Logistics Panel ──────────────────────────────────────────────────────
   { name: 'Shipments',      href: '/dashboard/logistics/shipments',   Icon: Truck,           roles: ['logistics','admin'] },
   { name: 'Vendors',        href: '/dashboard/logistics/vendors',     Icon: Users,           roles: ['logistics','admin'] },
@@ -38,6 +39,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     if (!isLoading && !user) router.push('/login');
     // Redirect logistics users to their dedicated home
     if (!isLoading && user?.role === 'logistics') router.push('/dashboard/logistics');
+    // Redirect virtual wallet users to their dedicated portal
+    if (!isLoading && user?.role === 'wallet_user') router.push('/virtual-wallet');
   }, [user, isLoading, router]);
 
   useEffect(() => { setMobileOpen(false); }, [pathname]);

@@ -865,3 +865,299 @@ export const centerRegistrations: CenterRegistration[] = [
     createdAt: '2024-09-15',
   },
 ];
+
+// ════════════════════════════════════════════════════════════════════════════
+// WALLET CONTROL DASHBOARD — MULTI-ROLE WALLETS & PAYMENT CONTROL
+// ════════════════════════════════════════════════════════════════════════════
+
+// Payment flow control — allows admin to pause/resume payments for any entity
+export interface PaymentControl {
+  id: string;
+  entityType: 'user' | 'doctor' | 'logistics' | 'system';
+  entityId: string;         // userId / doctorId / 'logistics-global'
+  entityName: string;
+  paused: boolean;
+  pausedAt?: string;
+  pausedBy?: string;        // admin userId
+  pauseReason?: string;
+  resumedAt?: string;
+  resumedBy?: string;
+}
+
+export const paymentControls: PaymentControl[] = [
+  { id: 'pc1', entityType: 'user',      entityId: '1',              entityName: 'John Carter',      paused: false },
+  { id: 'pc2', entityType: 'doctor',    entityId: 'd1',             entityName: 'Dr. Sarah Smith',  paused: false },
+  { id: 'pc3', entityType: 'doctor',    entityId: 'd2',             entityName: 'Dr. James Wilson', paused: false },
+  { id: 'pc4', entityType: 'doctor',    entityId: 'd3',             entityName: 'Dr. Emily Chen',   paused: false },
+  { id: 'pc5', entityType: 'logistics', entityId: 'logistics-global', entityName: 'Logistics Dept', paused: false },
+  { id: 'pc6', entityType: 'system',    entityId: 'system-global',  entityName: 'Global Payments',  paused: false },
+];
+
+// Doctor wallet — consultation earnings accumulate here
+export interface DoctorWallet {
+  doctorId: string;
+  doctorName: string;
+  specialization: string;
+  balance: number;         // current earnings balance
+  totalEarned: number;     // all-time gross
+  totalWithdrawn: number;
+  pendingSettlement: number;
+}
+
+export const doctorWallets: DoctorWallet[] = [
+  { doctorId: 'd1', doctorName: 'Dr. Sarah Smith',  specialization: 'Cardiology',   balance: 4500,  totalEarned: 18000, totalWithdrawn: 12000, pendingSettlement: 1500 },
+  { doctorId: 'd2', doctorName: 'Dr. James Wilson', specialization: 'Neurology',    balance: 8200,  totalEarned: 24000, totalWithdrawn: 14000, pendingSettlement: 1800 },
+  { doctorId: 'd3', doctorName: 'Dr. Emily Chen',   specialization: 'Dermatology',  balance: 2100,  totalEarned: 9600,  totalWithdrawn: 7000,  pendingSettlement: 500  },
+];
+
+export interface DoctorWalletTransaction {
+  id: string;
+  doctorId: string;
+  type: 'credit' | 'debit' | 'settlement';
+  amount: number;
+  description: string;
+  patientName?: string;
+  date: string;
+}
+
+export const doctorWalletTransactions: DoctorWalletTransaction[] = [
+  { id: 'dwt1', doctorId: 'd1', type: 'credit',     amount: 150, description: 'Consultation — John Carter',    patientName: 'John Carter',    date: '2025-07-05' },
+  { id: 'dwt2', doctorId: 'd1', type: 'credit',     amount: 150, description: 'Consultation — Sunita Devi',   patientName: 'Sunita Devi',    date: '2025-07-07' },
+  { id: 'dwt3', doctorId: 'd1', type: 'settlement', amount: 2000, description: 'Weekly settlement payout',                                   date: '2025-07-06' },
+  { id: 'dwt4', doctorId: 'd2', type: 'credit',     amount: 200, description: 'Consultation — Rahul Mehta',   patientName: 'Rahul Mehta',    date: '2025-07-08' },
+  { id: 'dwt5', doctorId: 'd2', type: 'credit',     amount: 200, description: 'Consultation — Priya Singh',   patientName: 'Priya Singh',    date: '2025-07-09' },
+  { id: 'dwt6', doctorId: 'd3', type: 'credit',     amount: 120, description: 'Consultation — Amit Kumar',    patientName: 'Amit Kumar',     date: '2025-07-05' },
+];
+
+// Logistics wallet — freight income/expense
+export interface LogisticsWallet {
+  id: string;
+  balance: number;
+  totalIncome: number;
+  totalExpense: number;
+  pendingPayouts: number;
+  lastUpdated: string;
+}
+
+export const logisticsWallet: LogisticsWallet = {
+  id: 'lw1',
+  balance: 26500,
+  totalIncome: 108500,
+  totalExpense: 82000,
+  pendingPayouts: 5500,
+  lastUpdated: '2025-07-11',
+};
+
+// System-level wallet activity summary (aggregate across all)
+export interface WalletActivityLog {
+  id: string;
+  entityType: 'user' | 'doctor' | 'logistics' | 'system';
+  entityName: string;
+  action: 'payment_paused' | 'payment_resumed' | 'top_up' | 'withdrawal' | 'settlement';
+  amount?: number;
+  performedBy: string;
+  timestamp: string;
+}
+
+export const walletActivityLog: WalletActivityLog[] = [
+  { id: 'wal1', entityType: 'user',      entityName: 'John Carter',      action: 'top_up',     amount: 2000,  performedBy: 'John Carter',   timestamp: '2025-07-01T09:00:00Z' },
+  { id: 'wal2', entityType: 'doctor',    entityName: 'Dr. Sarah Smith',  action: 'settlement', amount: 2000,  performedBy: 'Admin Manager', timestamp: '2025-07-06T14:00:00Z' },
+  { id: 'wal3', entityType: 'logistics', entityName: 'Logistics Dept',   action: 'withdrawal', amount: 15000, performedBy: 'Admin Manager', timestamp: '2025-07-07T10:00:00Z' },
+  { id: 'wal4', entityType: 'user',      entityName: 'John Carter',      action: 'top_up',     amount: 1000,  performedBy: 'John Carter',   timestamp: '2025-07-08T11:30:00Z' },
+];
+
+// ════════════════════════════════════════════════════════════════════════════
+// VIRTUAL WALLET SYSTEM — Section (D) Full Flow
+// ════════════════════════════════════════════════════════════════════════════
+
+export type EnrollmentStatus = 'enrolled' | 'processing' | 'card_printed' | 'dispatched' | 'active' | 'suspended';
+export type CardScanStatus   = 'pending' | 'scanned' | 'verified';
+
+export interface VirtualWalletUser {
+  id: string;
+  email: string;
+  password: string;
+  fullName: string;
+  role: 'wallet_user';
+  // Enrollment
+  cardNumber: string;
+  enrollmentDate: string;
+  enrollmentStatus: EnrollmentStatus;
+  cardScanStatus: CardScanStatus;
+  centerAssigned: string;       // S1 / S2 / S3 / DHS
+  dispatchDate?: string;
+  activationDate?: string;
+  // Fund allocation
+  allocatedAmount: number;      // ₹35,000
+  stateWalletBalance: number;
+  masterLedgerBalance: number;
+  offlineBalance: number;
+  onlineBalance: number;
+  createdAt: string;
+}
+
+export const virtualWalletUsers: VirtualWalletUser[] = [
+  {
+    id: 'vw1',
+    email: 'wallet@example.com',
+    password: 'password123',
+    fullName: 'Priya Sharma',
+    role: 'wallet_user',
+    cardNumber: 'SWAB-1001-2025',
+    enrollmentDate: '2025-01-10',
+    enrollmentStatus: 'active',
+    cardScanStatus: 'verified',
+    centerAssigned: 'S1',
+    dispatchDate: '2025-01-12',
+    activationDate: '2025-01-15',
+    allocatedAmount: 35000,
+    stateWalletBalance: 35000,
+    masterLedgerBalance: 35000,
+    offlineBalance: 20000,
+    onlineBalance: 15000,
+    createdAt: '2025-01-10',
+  },
+  {
+    id: 'vw2',
+    email: 'wallet2@example.com',
+    password: 'password123',
+    fullName: 'Rajiv Patel',
+    role: 'wallet_user',
+    cardNumber: 'SWAB-1002-2025',
+    enrollmentDate: '2025-02-05',
+    enrollmentStatus: 'card_printed',
+    cardScanStatus: 'pending',
+    centerAssigned: 'S2',
+    dispatchDate: '2025-02-07',
+    allocatedAmount: 35000,
+    stateWalletBalance: 35000,
+    masterLedgerBalance: 35000,
+    offlineBalance: 35000,
+    onlineBalance: 0,
+    createdAt: '2025-02-05',
+  },
+];
+
+// ── Offline Transactions (Center visits — S1/S2/S3/DHS) ───────────────────
+export interface OfflineTransaction {
+  id: string;
+  userId: string;
+  center: 'S1' | 'S2' | 'S3' | 'DHS';
+  centerName: string;
+  serviceType: 'OPD' | 'IPD' | 'Lab' | 'Pharmacy' | 'Diagnostics' | 'Other';
+  amount: number;
+  description: string;
+  innerNetRef: string;       // inner net detail reference
+  attendedBy: string;
+  date: string;
+  status: 'posted' | 'pending' | 'reversed';
+}
+
+export const offlineTransactions: OfflineTransaction[] = [
+  { id: 'ot1', userId: 'vw1', center: 'S1', centerName: 'S1 Center Delhi',    serviceType: 'OPD',        amount: 500,  description: 'General OPD consultation',         innerNetRef: 'INET-S1-001', attendedBy: 'Dr. Meena',        date: '2025-07-01', status: 'posted'  },
+  { id: 'ot2', userId: 'vw1', center: 'S1', centerName: 'S1 Center Delhi',    serviceType: 'Lab',        amount: 850,  description: 'CBC + Lipid Profile',              innerNetRef: 'INET-S1-002', attendedBy: 'Lab Technician',  date: '2025-07-03', status: 'posted'  },
+  { id: 'ot3', userId: 'vw1', center: 'S2', centerName: 'S2 Hub Noida',       serviceType: 'Pharmacy',   amount: 320,  description: 'Paracetamol + Metformin',          innerNetRef: 'INET-S2-001', attendedBy: 'Pharmacist Raju', date: '2025-07-05', status: 'posted'  },
+  { id: 'ot4', userId: 'vw1', center: 'DHS',centerName: 'DHS Point Gurugram', serviceType: 'Diagnostics',amount: 1200, description: 'ECG + X-Ray chest',               innerNetRef: 'INET-DHS-001',attendedBy: 'Dr. Vikas',       date: '2025-07-08', status: 'posted'  },
+  { id: 'ot5', userId: 'vw1', center: 'S3', centerName: 'S3 Center Faridabad',serviceType: 'IPD',        amount: 4500, description: 'Day care procedure',              innerNetRef: 'INET-S3-001', attendedBy: 'Dr. Anita',       date: '2025-06-20', status: 'posted'  },
+  { id: 'ot6', userId: 'vw1', center: 'S1', centerName: 'S1 Center Delhi',    serviceType: 'Other',      amount: 150,  description: 'Administrative fee',              innerNetRef: 'INET-S1-003', attendedBy: 'Staff',           date: '2025-06-15', status: 'reversed'},
+];
+
+// ── Online Transactions (Payment Gateway — Teleconsult / E-Medicine) ──────
+export interface OnlineTransaction {
+  id: string;
+  userId: string;
+  channel: 'teleconsult' | 'e_medicine' | 'lab_booking' | 'therapy';
+  gateway: string;
+  gatewayRef: string;
+  amount: number;
+  description: string;
+  creditNoteRef?: string;
+  status: 'success' | 'failed' | 'refunded' | 'pending';
+  date: string;
+}
+
+export const onlineTransactions: OnlineTransaction[] = [
+  { id: 'ont1', userId: 'vw1', channel: 'teleconsult',  gateway: 'Razorpay', gatewayRef: 'RZP-20250705-001', amount: 150,  description: 'Teleconsult — Dr. Sarah Smith',    creditNoteRef: 'CN-001', status: 'success', date: '2025-07-05' },
+  { id: 'ont2', userId: 'vw1', channel: 'e_medicine',   gateway: 'Razorpay', gatewayRef: 'RZP-20250706-002', amount: 210,  description: 'E-Medicine order — PHARM-001',     creditNoteRef: 'CN-002', status: 'success', date: '2025-07-06' },
+  { id: 'ont3', userId: 'vw1', channel: 'lab_booking',  gateway: 'Razorpay', gatewayRef: 'RZP-20250708-003', amount: 650,  description: 'Lab booking — Thyroid panel',                       status: 'success', date: '2025-07-08' },
+  { id: 'ont4', userId: 'vw1', channel: 'teleconsult',  gateway: 'Razorpay', gatewayRef: 'RZP-20250709-004', amount: 200,  description: 'Teleconsult — Dr. James Wilson',                    status: 'pending', date: '2025-07-09' },
+  { id: 'ont5', userId: 'vw1', channel: 'therapy',      gateway: 'Razorpay', gatewayRef: 'RZP-20250703-005', amount: 500,  description: 'Mental health therapy session',    creditNoteRef: 'CN-003', status: 'refunded',date: '2025-07-03' },
+];
+
+// ── Main Ledger Entry System ───────────────────────────────────────────────
+export interface MainLedgerEntry {
+  id: string;
+  userId: string;
+  entryType: 'debit' | 'credit';
+  source: 'offline' | 'online' | 'allocation' | 'reversal' | 'settlement';
+  amount: number;
+  description: string;
+  creditNoteRef?: string;
+  masterCreditNoteRef?: string;
+  relatedTxnId?: string;
+  date: string;
+  postedBy: string;
+  status: 'posted' | 'pending' | 'reversed';
+}
+
+export const mainLedgerEntries: MainLedgerEntry[] = [
+  { id: 'ml1',  userId: 'vw1', entryType: 'credit', source: 'allocation', amount: 35000, description: 'Initial fund allocation — State Wallet',    masterCreditNoteRef: 'MCN-2025-001', date: '2025-01-15', postedBy: 'Data Center', status: 'posted' },
+  { id: 'ml2',  userId: 'vw1', entryType: 'debit',  source: 'offline',   amount: 500,   description: 'OPD consultation — S1 Center',              relatedTxnId: 'ot1', date: '2025-07-01', postedBy: 'S1 Center',   status: 'posted' },
+  { id: 'ml3',  userId: 'vw1', entryType: 'debit',  source: 'offline',   amount: 850,   description: 'Lab tests — S1 Center',                     relatedTxnId: 'ot2', date: '2025-07-03', postedBy: 'S1 Center',   status: 'posted' },
+  { id: 'ml4',  userId: 'vw1', entryType: 'debit',  source: 'online',    amount: 150,   description: 'Teleconsult — Dr. Sarah Smith',             creditNoteRef: 'CN-001', relatedTxnId: 'ont1', date: '2025-07-05', postedBy: 'Gateway', status: 'posted' },
+  { id: 'ml5',  userId: 'vw1', entryType: 'debit',  source: 'offline',   amount: 320,   description: 'Pharmacy — S2 Hub',                         relatedTxnId: 'ot3', date: '2025-07-05', postedBy: 'S2 Center',   status: 'posted' },
+  { id: 'ml6',  userId: 'vw1', entryType: 'debit',  source: 'online',    amount: 210,   description: 'E-Medicine order',                          creditNoteRef: 'CN-002', relatedTxnId: 'ont2', date: '2025-07-06', postedBy: 'Gateway', status: 'posted' },
+  { id: 'ml7',  userId: 'vw1', entryType: 'credit', source: 'reversal',  amount: 150,   description: 'Reversal — Administrative fee',             creditNoteRef: 'CN-REV-001', relatedTxnId: 'ot6', date: '2025-06-16', postedBy: 'Admin', status: 'posted' },
+  { id: 'ml8',  userId: 'vw1', entryType: 'debit',  source: 'offline',   amount: 1200,  description: 'ECG + X-Ray — DHS Point',                   relatedTxnId: 'ot4', date: '2025-07-08', postedBy: 'DHS Center',  status: 'posted' },
+  { id: 'ml9',  userId: 'vw1', entryType: 'credit', source: 'reversal',  amount: 500,   description: 'Therapy session refund — online gateway',   creditNoteRef: 'CN-003', relatedTxnId: 'ont5', date: '2025-07-04', postedBy: 'Gateway', status: 'pending' },
+  { id: 'ml10', userId: 'vw1', entryType: 'debit',  source: 'online',    amount: 650,   description: 'Lab booking — Thyroid panel',               creditNoteRef: 'CN-LAB-001', relatedTxnId: 'ont3', date: '2025-07-08', postedBy: 'Gateway', status: 'posted' },
+  { id: 'ml11', userId: 'vw1', entryType: 'debit',  source: 'offline',   amount: 4500,  description: 'Day care procedure — S3 Center',            relatedTxnId: 'ot5', date: '2025-06-20', postedBy: 'S3 Center',   status: 'posted' },
+];
+
+// ── Credit Notes ──────────────────────────────────────────────────────────
+export interface CreditNote {
+  id: string;
+  userId: string;
+  noteRef: string;
+  isMaster: boolean;
+  amount: number;
+  description: string;
+  issuedBy: string;
+  linkedLedgerIds: string[];
+  date: string;
+  // expanded status set — applied | issued | pending | rejected | expired
+  status: 'issued' | 'applied' | 'expired' | 'pending' | 'rejected';
+}
+
+export const creditNotes: CreditNote[] = [
+  // Master Credit Note — represents the ₹35,000 capital allocation. Excluded from "spend" totals.
+  { id: 'cn1', userId: 'vw1', noteRef: 'MCN-2025-001', isMaster: true,  amount: 35000, description: 'Master Credit Note — Initial ₹35,000 allocation', issuedBy: 'State Data Center', linkedLedgerIds: ['ml1'], date: '2025-01-15', status: 'applied' },
+  // Transaction-level credit notes (payment gateway acknowledgements)
+  { id: 'cn2', userId: 'vw1', noteRef: 'CN-001',       isMaster: false, amount: 150,   description: 'Credit note — Teleconsult Razorpay',              issuedBy: 'Payment Gateway',  linkedLedgerIds: ['ml4'], date: '2025-07-05', status: 'applied'  },
+  { id: 'cn3', userId: 'vw1', noteRef: 'CN-002',       isMaster: false, amount: 210,   description: 'Credit note — E-Medicine Razorpay',               issuedBy: 'Payment Gateway',  linkedLedgerIds: ['ml6'], date: '2025-07-06', status: 'applied'  },
+  { id: 'cn4', userId: 'vw1', noteRef: 'CN-003',       isMaster: false, amount: 500,   description: 'Credit note — Therapy refund',                    issuedBy: 'Payment Gateway',  linkedLedgerIds: ['ml9'], date: '2025-07-03', status: 'pending'  },
+  { id: 'cn5', userId: 'vw1', noteRef: 'CN-REV-001',   isMaster: false, amount: 150,   description: 'Credit note — Admin fee reversal',                issuedBy: 'S1 Center',        linkedLedgerIds: ['ml7'], date: '2025-06-16', status: 'applied'  },
+  { id: 'cn6', userId: 'vw1', noteRef: 'CN-LAB-001',   isMaster: false, amount: 650,   description: 'Credit note — Lab booking Razorpay',              issuedBy: 'Payment Gateway',  linkedLedgerIds: ['ml10'],date: '2025-07-08', status: 'applied'  },
+];
+
+// ── Family Members (linked to primary Virtual Wallet card) ────────────────
+export interface FamilyMember {
+  id: string;
+  primaryUserId: string;    // references VirtualWalletUser.id
+  uid: string;              // unique government UID
+  fullName: string;
+  dob: string;              // YYYY-MM-DD
+  gender: 'male' | 'female' | 'other';
+  relationship: 'self' | 'spouse' | 'child' | 'parent' | 'sibling' | 'other';
+  bloodGroup?: string;
+  phone?: string;
+  isActive: boolean;
+}
+
+export const familyMembers: FamilyMember[] = [
+  { id: 'fm1', primaryUserId: 'vw1', uid: 'UID-SHARMA-001', fullName: 'Priya Sharma',  dob: '1990-03-15', gender: 'female', relationship: 'self',    bloodGroup: 'B+', phone: '9811000001', isActive: true  },
+  { id: 'fm2', primaryUserId: 'vw1', uid: 'UID-SHARMA-002', fullName: 'Rakesh Sharma', dob: '1988-07-22', gender: 'male',   relationship: 'spouse',  bloodGroup: 'O+', phone: '9811000002', isActive: true  },
+  { id: 'fm3', primaryUserId: 'vw1', uid: 'UID-SHARMA-003', fullName: 'Aarav Sharma',  dob: '2015-11-08', gender: 'male',   relationship: 'child',   bloodGroup: 'B+', isActive: true  },
+  { id: 'fm4', primaryUserId: 'vw1', uid: 'UID-SHARMA-004', fullName: 'Sunita Devi',   dob: '1962-05-30', gender: 'female', relationship: 'parent',  bloodGroup: 'A+', phone: '9811000004', isActive: true  },
+  { id: 'fm5', primaryUserId: 'vw1', uid: 'UID-SHARMA-005', fullName: 'Rohit Sharma',  dob: '1993-02-14', gender: 'male',   relationship: 'sibling', bloodGroup: 'AB+',isActive: false },
+];
