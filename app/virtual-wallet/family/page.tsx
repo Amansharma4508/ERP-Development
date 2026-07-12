@@ -74,8 +74,8 @@ export default function FamilyMembersPage() {
             <div className="flex items-start justify-between gap-4 flex-wrap">
               <div className="flex items-center gap-4">
                 {/* Avatar */}
-                <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-white font-bold text-base flex-shrink-0
-                  ${m.gender === 'female' ? 'bg-gradient-to-br from-pink-400 to-rose-500' : 'bg-gradient-to-br from-teal-400 to-cyan-500'}`}>
+                <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-white font-bold text-base shrink-0
+                  ${m.gender === 'female' ? 'bg-linear-to-br from-pink-400 to-rose-500' : 'bg-linear-to-br from-teal-400 to-cyan-500'}`}>
                   {m.fullName.split(' ').map((w: string) => w[0]).join('').slice(0,2).toUpperCase()}
                 </div>
                 <div>
@@ -96,14 +96,14 @@ export default function FamilyMembersPage() {
             {/* Details grid */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-4">
               <div className="flex items-center gap-2">
-                <Calendar size={14} className="text-muted-foreground flex-shrink-0" />
+                <Calendar size={14} className="text-muted-foreground shrink-0" />
                 <div>
                   <p className="text-xs text-muted-foreground">Age / DOB</p>
                   <p className="text-xs font-semibold text-foreground">{calcAge(m.dob)} yrs · {m.dob}</p>
                 </div>
               </div>
               <div className="flex items-center gap-2">
-                <UserCheck size={14} className="text-muted-foreground flex-shrink-0" />
+                <UserCheck size={14} className="text-muted-foreground shrink-0" />
                 <div>
                   <p className="text-xs text-muted-foreground">Gender</p>
                   <p className="text-xs font-semibold text-foreground capitalize">{m.gender}</p>
@@ -111,7 +111,7 @@ export default function FamilyMembersPage() {
               </div>
               {m.bloodGroup && (
                 <div className="flex items-center gap-2">
-                  <Droplets size={14} className="text-red-400 flex-shrink-0" />
+                  <Droplets size={14} className="text-red-400 shrink-0" />
                   <div>
                     <p className="text-xs text-muted-foreground">Blood Group</p>
                     <p className="text-xs font-semibold text-foreground">{m.bloodGroup}</p>
@@ -120,7 +120,7 @@ export default function FamilyMembersPage() {
               )}
               {m.phone && (
                 <div className="flex items-center gap-2">
-                  <Phone size={14} className="text-muted-foreground flex-shrink-0" />
+                  <Phone size={14} className="text-muted-foreground shrink-0" />
                   <div>
                     <p className="text-xs text-muted-foreground">Phone</p>
                     <p className="text-xs font-semibold text-foreground">{m.phone}</p>
@@ -139,7 +139,7 @@ export default function FamilyMembersPage() {
           {inactiveMembers.map((m: any) => (
             <div key={m.id} className="bg-card rounded-2xl border border-border p-4 opacity-60">
               <div className="flex items-center gap-4">
-                <div className="w-10 h-10 rounded-xl bg-muted flex items-center justify-center flex-shrink-0">
+                <div className="w-10 h-10 rounded-xl bg-muted flex items-center justify-center shrink-0">
                   <UserX size={18} className="text-muted-foreground" />
                 </div>
                 <div>

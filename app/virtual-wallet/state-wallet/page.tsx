@@ -101,7 +101,7 @@ export default function StateWalletPage() {
                   <p className="text-xs text-muted-foreground mt-0.5">{cn.date} · Issued by {cn.issuedBy}</p>
                 </div>
               </div>
-              <div className="text-right flex-shrink-0 ml-3">
+              <div className="text-right shrink-0 ml-3">
                 <p className="text-sm font-bold text-emerald-600">₹{cn.amount.toLocaleString()}</p>
                 <span className={`text-xs font-semibold px-2 py-0.5 rounded-full
                   ${cn.status === 'applied' ? 'bg-emerald-100 text-emerald-700'
@@ -125,7 +125,7 @@ export default function StateWalletPage() {
           {ledger.map((e: any) => (
             <div key={e.id} className="flex items-center justify-between px-5 py-4 hover:bg-muted transition">
               <div className="flex items-center gap-3">
-                <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0
+                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0
                   ${e.entryType === 'credit' ? 'bg-emerald-100' : 'bg-red-100'}`}>
                   {e.entryType === 'credit'
                     ? <ArrowDownLeft size={16} className="text-emerald-600" />
@@ -146,7 +146,7 @@ export default function StateWalletPage() {
                   </div>
                 </div>
               </div>
-              <span className={`text-sm font-bold flex-shrink-0 ml-3
+              <span className={`text-sm font-bold shrink-0 ml-3
                 ${e.entryType === 'credit' ? 'text-emerald-600' : 'text-red-500'}`}>
                 {e.entryType === 'credit' ? '+' : '-'}₹{e.amount.toLocaleString()}
               </span>

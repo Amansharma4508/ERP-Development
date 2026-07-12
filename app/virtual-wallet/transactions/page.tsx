@@ -164,7 +164,7 @@ export default function TransactionsPage() {
               return (
                 <div key={t.id} className={`flex items-center justify-between px-5 py-4 hover:bg-muted transition ${t.status === 'reversed' ? 'opacity-60' : ''}`}>
                   <div className="flex items-center gap-3 min-w-0">
-                    <div className="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center flex-shrink-0">
+                    <div className="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center shrink-0">
                       <Building2 size={17} className="text-amber-600" />
                     </div>
                     <div className="min-w-0">
@@ -187,7 +187,7 @@ export default function TransactionsPage() {
                       </div>
                     </div>
                   </div>
-                  <span className={`text-sm font-bold flex-shrink-0 ml-4 ${t.status === 'reversed' ? 'text-blue-400 line-through' : 'text-red-500'}`}>
+                  <span className={`text-sm font-bold shrink-0 ml-4 ${t.status === 'reversed' ? 'text-blue-400 line-through' : 'text-red-500'}`}>
                     -₹{t.amount.toLocaleString()}
                   </span>
                 </div>
@@ -220,7 +220,7 @@ export default function TransactionsPage() {
               return (
                 <div key={t.id} className={`flex items-center justify-between px-5 py-4 hover:bg-muted transition ${t.status === 'refunded' || t.status === 'failed' ? 'opacity-70' : ''}`}>
                   <div className="flex items-center gap-3 min-w-0">
-                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${meta.color}`}>
+                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${meta.color}`}>
                       <meta.Icon size={17} />
                     </div>
                     <div className="min-w-0">
@@ -242,7 +242,7 @@ export default function TransactionsPage() {
                       </div>
                     </div>
                   </div>
-                  <span className={`text-sm font-bold flex-shrink-0 ml-4
+                  <span className={`text-sm font-bold shrink-0 ml-4
                     ${t.status === 'refunded' ? 'text-emerald-500' : t.status === 'failed' ? 'text-muted-foreground' : t.status === 'pending' ? 'text-amber-500' : 'text-red-500'}`}>
                     {t.status === 'refunded' ? '+' : t.status === 'failed' ? '' : '-'}₹{t.amount.toLocaleString()}
                     {(t.status === 'refunded' || t.status === 'failed' || t.status === 'pending') && (

@@ -175,7 +175,7 @@ export default function LedgerPage() {
             ) : filteredLedger.map((e: any) => (
               <div key={e.id} className="flex items-center justify-between px-5 py-4 hover:bg-muted transition">
                 <div className="flex items-center gap-3 min-w-0">
-                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0
+                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0
                     ${e.entryType === 'credit' ? 'bg-emerald-100' : 'bg-red-100'}`}>
                     {e.entryType === 'credit'
                       ? <ArrowDownLeft size={16} className="text-emerald-600" />
@@ -191,7 +191,7 @@ export default function LedgerPage() {
                     </div>
                   </div>
                 </div>
-                <div className="flex-shrink-0 ml-4 text-right">
+                <div className="shrink-0 ml-4 text-right">
                   <p className={`text-sm font-bold ${e.entryType === 'credit' ? 'text-emerald-600' : 'text-red-500'}`}>
                     {e.entryType === 'credit' ? '+' : '-'}₹{e.amount.toLocaleString()}
                   </p>
@@ -214,7 +214,7 @@ export default function LedgerPage() {
             <div key={cn.id} className="rounded-2xl border-2 border-indigo-300 bg-indigo-50 p-5">
               <div className="flex items-start justify-between gap-3">
                 <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-2xl bg-indigo-100 flex items-center justify-center flex-shrink-0">
+                <div className="w-12 h-12 rounded-2xl bg-indigo-100 flex items-center justify-center shrink-0">
                     <Database size={22} className="text-indigo-600" />
                   </div>
                   <div>
@@ -227,7 +227,7 @@ export default function LedgerPage() {
                     <p className="text-xs text-indigo-500 mt-1">{cn.date} · Issued by {cn.issuedBy}</p>
                   </div>
                 </div>
-                <div className="text-right flex-shrink-0">
+                  <div className="text-right shrink-0">
                   <p className="text-2xl font-bold text-indigo-700">₹{cn.amount.toLocaleString()}</p>
                   <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${CN_STATUS_COLOR[cn.status] ?? 'bg-muted text-muted-foreground'}`}>{cn.status}</span>
                 </div>
@@ -252,7 +252,7 @@ export default function LedgerPage() {
               ) : nonMasterNotes.map((cn: any) => (
                 <div key={cn.id} className="flex items-center justify-between px-5 py-4 hover:bg-muted transition">
                   <div className="flex items-center gap-3 min-w-0">
-                    <div className="w-9 h-9 rounded-xl bg-teal-100 flex items-center justify-center flex-shrink-0">
+                    <div className="w-9 h-9 rounded-xl bg-teal-100 flex items-center justify-center shrink-0">
                       <CheckCircle2 size={16} className="text-teal-600" />
                     </div>
                     <div className="min-w-0">
@@ -261,7 +261,7 @@ export default function LedgerPage() {
                       <p className="text-xs text-muted-foreground mt-0.5">{cn.date} · {cn.issuedBy}</p>
                     </div>
                   </div>
-                  <div className="text-right flex-shrink-0 ml-3">
+                  <div className="text-right shrink-0 ml-3">
                     <p className="text-sm font-bold text-teal-600">₹{cn.amount.toLocaleString()}</p>
                     <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${CN_STATUS_COLOR[cn.status] ?? 'bg-muted text-muted-foreground'}`}>
                       {cn.status}

@@ -23,6 +23,11 @@ export async function GET(request: NextRequest) {
   const vwUser = virtualWalletUsers.find((u) => u.id === userId);
   if (!vwUser) return toJson(errorResponse('Virtual wallet account not found', 404));
 
+  const showMasterDetails = payload.role === 'admin';
+  const responseUser = showMasterDetails
+    ? vwUser
+    : (({ masterLedgerBalance, ...rest }) => rest)(vwUser as any);
+
   // ── Raw data ──────────────────────────────────────────────────────────────
   const offline = offlineTransactions
     .filter((t) => t.userId === userId)
@@ -81,6 +86,8 @@ export async function GET(request: NextRequest) {
     .filter((n) => n.isMaster)
     .reduce((s, n) => s + n.amount, 0);
 
+  const totalCreditNotesValue = notes.reduce((s, n) => s + n.amount, 0);
+
   // ── Audit check: non-master credit notes should not exceed allocation ─────
   const creditNoteAuditWarning =
     nonMasterCreditNoteTotal > vwUser.allocatedAmount
@@ -88,27 +95,36 @@ export async function GET(request: NextRequest) {
       : null;
 
   // ── Ledger totals — ONLY 'posted' entries, derive from real transaction data
-  // debits = all posted debit entries (excluding allocation credits)
   const ledgerDebits = ledger
     .filter((e) => e.entryType === 'debit' && e.status === 'posted')
     .reduce((s, e) => s + e.amount, 0);
 
-  // credits = all posted credit entries (includes allocation + reversals)
   const ledgerCredits = ledger
     .filter((e) => e.entryType === 'credit' && e.status === 'posted')
     .reduce((s, e) => s + e.amount, 0);
 
-  // net = credits - debits (positive = more came in than went out)
   const netLedger = ledgerCredits - ledgerDebits;
 
-  // Low balance threshold = 20% of allocated
   const lowBalanceThreshold = Math.round(vwUser.allocatedAmount * 0.2);
-  const remainingBalance    = vwUser.stateWalletBalance - totalSpent;
+  const remainingBalance    = netLedger;
   const isLowBalance        = remainingBalance <= lowBalanceThreshold;
+
+  const breadcrumb = showMasterDetails
+    ? [
+        { label: 'Master Wallet', value: `₹${vwUser.masterLedgerBalance.toLocaleString()}` },
+        { label: 'State Wallet', value: `₹${vwUser.stateWalletBalance.toLocaleString()}` },
+        { label: `Center ${vwUser.centerAssigned}`, value: `₹${totalOfflineSpent.toLocaleString()} spent` },
+        { label: 'User Wallet', value: `₹${remainingBalance.toLocaleString()} remaining` },
+      ]
+    : [
+        { label: 'State Wallet', value: `₹${vwUser.stateWalletBalance.toLocaleString()}` },
+        { label: `Center ${vwUser.centerAssigned}`, value: `₹${totalOfflineSpent.toLocaleString()} spent` },
+        { label: 'User Wallet', value: `₹${remainingBalance.toLocaleString()} remaining` },
+      ];
 
   return toJson(
     successResponse({
-      user: vwUser,
+      user: responseUser,
       summary: {
         allocatedAmount:          vwUser.allocatedAmount,
         stateWalletBalance:       vwUser.stateWalletBalance,
@@ -119,6 +135,7 @@ export async function GET(request: NextRequest) {
         totalOnlineSpent,
         // totalCreditNotes = non-master only, so it never exceeds ₹35,000
         totalCreditNotes:         nonMasterCreditNoteTotal,
+        totalCreditNotesValue,
         masterCreditNoteAmount,
         remainingBalance,
         ledgerDebits,
@@ -135,12 +152,7 @@ export async function GET(request: NextRequest) {
       creditNotes: notes,
       familyMembers: members,
       // breadcrumb hierarchy
-      breadcrumb: [
-        { label: 'Master Wallet',  value: `₹${vwUser.masterLedgerBalance.toLocaleString()}` },
-        { label: 'State Wallet',   value: `₹${vwUser.stateWalletBalance.toLocaleString()}` },
-        { label: `Center ${vwUser.centerAssigned}`, value: `₹${totalOfflineSpent.toLocaleString()} spent` },
-        { label: 'User Wallet',    value: `₹${remainingBalance.toLocaleString()} remaining` },
-      ],
+      breadcrumb,
     }),
   );
 }

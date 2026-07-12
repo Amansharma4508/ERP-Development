@@ -75,6 +75,151 @@ function exportCSV(rows: any[], filename: string) {
   URL.revokeObjectURL(url);
 }
 
+function CardApplicationForm() {
+  const [form, setForm] = useState({
+    fullName: '', fatherName: '', motherName: '', email: '', password: '',
+    dob: '', gender: 'female', qualification: '', district: '', state: '', pinCode: '',
+    centerAssigned: 'S1', consentGiven: false,
+  });
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const canSubmit = useMemo(() => {
+    return (
+      form.fullName.trim() !== '' &&
+      form.fatherName.trim() !== '' &&
+      form.motherName.trim() !== '' &&
+      form.email.trim() !== '' &&
+      form.password.trim().length >= 6 &&
+      form.district.trim() !== '' &&
+      form.state.trim() !== '' &&
+      form.pinCode.trim().length >= 4 &&
+      form.consentGiven
+    );
+  }, [form]);
+
+  const handleChange = (key: string, value: string | boolean) => {
+    setForm((prev) => ({ ...prev, [key]: value }));
+  };
+
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setError(null);
+    setMessage(null);
+    if (!canSubmit) {
+      setError('Please complete all required fields and give consent.');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const res = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...form, role: 'wallet_user' }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        setError(data.error || 'Submission failed.');
+      } else {
+        setMessage('Application submitted successfully. Please login for next steps.');
+        setForm({
+          fullName: '', fatherName: '', motherName: '', email: '', password: '',
+          dob: '', gender: 'female', qualification: '', district: '', state: '', pinCode: '',
+          centerAssigned: 'S1', consentGiven: false,
+        });
+      }
+    } catch {
+      setError('Network error, please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="rounded-3xl border border-border bg-card p-6 shadow-sm">
+      <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h2 className="text-lg font-semibold text-foreground">SWAB Card Application</h2>
+          <p className="text-sm text-muted-foreground">Fill the form to apply for the virtual wallet card.</p>
+        </div>
+        <span className="rounded-full bg-teal-100 px-3 py-1 text-xs font-semibold text-teal-700">Shown in wallet</span>
+      </div>
+      <form onSubmit={handleSubmit} className="grid gap-4">
+        <div className="grid gap-4 md:grid-cols-2">
+          {[
+            { label: 'Full Name *', key: 'fullName', type: 'text' },
+            { label: 'Father’s Name *', key: 'fatherName', type: 'text' },
+            { label: 'Mother’s Name *', key: 'motherName', type: 'text' },
+            { label: 'Email *', key: 'email', type: 'email' },
+            { label: 'Password *', key: 'password', type: 'password' },
+            { label: 'DOB', key: 'dob', type: 'date' },
+            { label: 'State *', key: 'state', type: 'text' },
+            { label: 'District *', key: 'district', type: 'text' },
+            { label: 'PIN Code *', key: 'pinCode', type: 'text' },
+            { label: 'Qualification', key: 'qualification', type: 'text' },
+          ].map((field) => (
+            <label key={field.key} className="block">
+              <span className="text-sm font-medium text-foreground">{field.label}</span>
+              <input
+                type={field.type}
+                value={(form as any)[field.key]}
+                onChange={(event) => handleChange(field.key, event.target.value)}
+                className="mt-2 w-full rounded-2xl border border-border bg-background px-4 py-3 text-sm text-foreground outline-none transition focus:border-teal-500 focus:ring-2 focus:ring-teal-100"
+              />
+            </label>
+          ))}
+        </div>
+        <div className="grid gap-4 md:grid-cols-3">
+          <label className="block">
+            <span className="text-sm font-medium text-foreground">Gender</span>
+            <select
+              value={form.gender}
+              onChange={(event) => handleChange('gender', event.target.value)}
+              className="mt-2 w-full rounded-2xl border border-border bg-background px-4 py-3 text-sm text-foreground outline-none transition focus:border-teal-500 focus:ring-2 focus:ring-teal-100"
+            >
+              {['female', 'male', 'other'].map((option) => (
+                <option key={option} value={option}>{option}</option>
+              ))}
+            </select>
+          </label>
+          <label className="block">
+            <span className="text-sm font-medium text-foreground">Center Assigned</span>
+            <select
+              value={form.centerAssigned}
+              onChange={(event) => handleChange('centerAssigned', event.target.value)}
+              className="mt-2 w-full rounded-2xl border border-border bg-background px-4 py-3 text-sm text-foreground outline-none transition focus:border-teal-500 focus:ring-2 focus:ring-teal-100"
+            >
+              {['S1', 'S2', 'S3', 'DHS'].map((option) => (
+                <option key={option} value={option}>{option}</option>
+              ))}
+            </select>
+          </label>
+          <label className="flex items-center gap-3 rounded-2xl border border-border bg-muted px-4 py-3 text-sm text-foreground">
+            <input
+              type="checkbox"
+              checked={form.consentGiven}
+              onChange={(event) => handleChange('consentGiven', event.target.checked)}
+              className="h-4 w-4 rounded border-border text-teal-600 focus:ring-teal-500"
+            />
+            I consent to data processing
+          </label>
+        </div>
+        {error && <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
+        {message && <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">{message}</div>}
+        <button
+          type="submit"
+          disabled={loading || !canSubmit}
+          className="inline-flex items-center justify-center rounded-3xl bg-teal-600 px-6 py-3 text-sm font-semibold text-white transition hover:bg-teal-700 disabled:cursor-not-allowed disabled:bg-slate-300"
+        >
+          {loading ? 'Submitting...' : 'Submit Application'}
+        </button>
+      </form>
+    </div>
+  );
+}
+
 export default function VirtualWalletOverview() {
   const { token } = useAuth();
   const [data, setData]         = useState<WalletData | null>(null);
@@ -134,7 +279,7 @@ export default function VirtualWalletOverview() {
       {/* ── Low balance alert ─────────────────────────────────────────────── */}
       {summary.isLowBalance && (
         <div className="flex items-center gap-3 px-5 py-3.5 rounded-2xl bg-amber-50 border-2 border-amber-300">
-          <AlertTriangle size={20} className="text-amber-500 flex-shrink-0" />
+          <AlertTriangle size={20} className="text-amber-500 shrink-0" />
           <div className="flex-1">
             <p className="text-sm font-bold text-amber-700">Wallet Balance Low</p>
             <p className="text-xs text-amber-600 mt-0.5">
@@ -147,7 +292,7 @@ export default function VirtualWalletOverview() {
       {/* ── Audit warning ─────────────────────────────────────────────────── */}
       {summary.creditNoteAuditWarning && (
         <div className="flex items-center gap-3 px-5 py-3 rounded-2xl bg-red-50 border border-red-300 text-red-700 text-xs font-medium">
-          <AlertCircle size={16} className="flex-shrink-0" />
+          <AlertCircle size={16} className="shrink-0" />
           {summary.creditNoteAuditWarning}
         </div>
       )}
@@ -175,6 +320,8 @@ export default function VirtualWalletOverview() {
           </span>
         ))}
       </div>
+
+      <CardApplicationForm />
 
       {/* ── Date range filter ─────────────────────────────────────────────── */}
       <div className="flex items-center gap-2 flex-wrap">
@@ -207,10 +354,10 @@ export default function VirtualWalletOverview() {
       {/* ── Balance cards ────────────────────────────────────────────────── */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {[
-          { label: 'Total Allocated',   value: `₹${summary.allocatedAmount.toLocaleString()}`,                   sub: 'State fund',         color: 'bg-gradient-to-br from-teal-500 to-cyan-600',     Icon: Wallet      },
-          { label: 'Remaining Balance', value: `₹${summary.remainingBalance.toLocaleString()}`,                  sub: 'Available to spend', color: `bg-gradient-to-br ${summary.isLowBalance ? 'from-amber-500 to-orange-600' : 'from-emerald-500 to-teal-600'}`, Icon: ShieldCheck },
-          { label: isFiltered ? 'Offline (filtered)' : 'Offline Spent',  value: `₹${(isFiltered ? filteredOfflineSpent : summary.totalOfflineSpent).toLocaleString()}`, sub: 'Center visits', color: 'bg-gradient-to-br from-amber-500 to-orange-600', Icon: WifiOff },
-          { label: isFiltered ? 'Online (filtered)'  : 'Online Spent',   value: `₹${(isFiltered ? filteredOnlineSpent  : summary.totalOnlineSpent).toLocaleString()}`,  sub: 'Teleconsult/E-Med', color: 'bg-gradient-to-br from-violet-500 to-indigo-600', Icon: Wifi },
+          { label: 'Total Allocated',   value: `₹${summary.allocatedAmount.toLocaleString()}`,                   sub: 'State fund',         color: 'bg-linear-to-br from-teal-500 to-cyan-600',     Icon: Wallet      },
+          { label: 'Remaining Balance', value: `₹${summary.remainingBalance.toLocaleString()}`,                  sub: 'Available to spend', color: `bg-linear-to-br ${summary.isLowBalance ? 'from-amber-500 to-orange-600' : 'from-emerald-500 to-teal-600'}`, Icon: ShieldCheck },
+          { label: isFiltered ? 'Offline (filtered)' : 'Offline Spent',  value: `₹${(isFiltered ? filteredOfflineSpent : summary.totalOfflineSpent).toLocaleString()}`, sub: 'Center visits', color: 'bg-linear-to-br from-amber-500 to-orange-600', Icon: WifiOff },
+          { label: isFiltered ? 'Online (filtered)'  : 'Online Spent',   value: `₹${(isFiltered ? filteredOnlineSpent  : summary.totalOnlineSpent).toLocaleString()}`,  sub: 'Teleconsult/E-Med', color: 'bg-linear-to-br from-violet-500 to-indigo-600', Icon: Wifi },
         ].map(({ label, value, sub, color, Icon }) => (
           <div key={label} className={`${color} rounded-2xl p-5 text-white shadow-lg relative overflow-hidden`}>
             <div className="absolute -top-4 -right-4 w-20 h-20 rounded-full bg-white/10" />
@@ -264,14 +411,14 @@ export default function VirtualWalletOverview() {
         </div>
         <div className="flex items-center gap-1 overflow-x-auto pb-2">
           {['User Enrollment','Data Center Process','Print Card','Dispatch','Scan / Review at S1','Wallet Activated ₹35,000'].map((label, i, arr) => (
-            <div key={label} className="flex items-center gap-1 flex-shrink-0">
+            <div key={label} className="flex items-center gap-1 shrink-0">
               <div className="flex flex-col items-center gap-1">
                 <div className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold bg-teal-500 text-white">
                   <CheckCircle2 size={14} />
                 </div>
-                <p className="text-[10px] text-muted-foreground text-center max-w-[60px] leading-tight">{label}</p>
+                <p className="text-[10px] text-muted-foreground text-center max-w-15 leading-tight">{label}</p>
               </div>
-              {i < arr.length - 1 && <div className="h-0.5 w-6 flex-shrink-0 mb-4 bg-teal-400" />}
+              {i < arr.length - 1 && <div className="h-0.5 w-6 shrink-0 mb-4 bg-teal-400" />}
             </div>
           ))}
         </div>
@@ -305,7 +452,7 @@ export default function VirtualWalletOverview() {
           {SECTIONS.map(({ name, href, Icon, color, desc }) => (
             <Link key={href} href={href}
               className="bg-card rounded-2xl border border-border p-4 hover:shadow-md transition-all group flex flex-col gap-3">
-              <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${color} flex items-center justify-center`}>
+              <div className={`w-10 h-10 rounded-xl bg-linear-to-br ${color} flex items-center justify-center`}>
                 <Icon size={18} className="text-white" />
               </div>
               <div>

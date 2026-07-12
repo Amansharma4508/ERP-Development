@@ -91,7 +91,7 @@ export default function AllocationPage() {
               <div className={`rounded-2xl border-2 p-4 ${color}`}>
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-white/60 flex items-center justify-center flex-shrink-0">
+                    <div className="w-10 h-10 rounded-xl bg-white/60 flex items-center justify-center shrink-0">
                       <Icon size={18} />
                     </div>
                     <div>
@@ -99,7 +99,7 @@ export default function AllocationPage() {
                       <p className="text-xs opacity-70 mt-0.5">{sublabel}</p>
                     </div>
                   </div>
-                  <p className="text-lg font-bold flex-shrink-0">{value}</p>
+                  <p className="text-lg font-bold shrink-0">{value}</p>
                 </div>
                 <p className="text-xs opacity-60 mt-2 ml-13">{desc}</p>
               </div>
@@ -128,7 +128,7 @@ export default function AllocationPage() {
           <p className="text-3xl font-bold text-foreground mb-1">₹{user.offlineBalance.toLocaleString()}</p>
           <p className="text-xs text-muted-foreground mb-3">Allocated for offline center visits</p>
           <div className="w-full bg-muted rounded-full h-2 overflow-hidden mb-1">
-            <div className="h-2 rounded-full bg-gradient-to-r from-amber-400 to-orange-500" style={{ width: `${offlinePct}%` }} />
+            <div className="h-2 rounded-full bg-linear-to-r from-amber-400 to-orange-500" style={{ width: `${offlinePct}%` }} />
           </div>
           <p className="text-xs text-muted-foreground">{offlinePct.toFixed(0)}% of total allocation</p>
           <p className="text-xs text-muted-foreground mt-2">
@@ -149,7 +149,7 @@ export default function AllocationPage() {
           <p className="text-3xl font-bold text-foreground mb-1">₹{user.onlineBalance.toLocaleString()}</p>
           <p className="text-xs text-muted-foreground mb-3">Allocated for online services</p>
           <div className="w-full bg-muted rounded-full h-2 overflow-hidden mb-1">
-            <div className="h-2 rounded-full bg-gradient-to-r from-violet-400 to-indigo-500" style={{ width: `${onlinePct}%` }} />
+            <div className="h-2 rounded-full bg-linear-to-r from-violet-400 to-indigo-500" style={{ width: `${onlinePct}%` }} />
           </div>
           <p className="text-xs text-muted-foreground">{onlinePct.toFixed(0)}% of total allocation</p>
           <p className="text-xs text-muted-foreground mt-2">
@@ -199,7 +199,7 @@ export default function AllocationPage() {
                   <span className="text-sm font-bold text-foreground">₹{c.totalSpent.toLocaleString()}</span>
                 </div>
                 <div className="w-full bg-muted rounded-full h-2 overflow-hidden">
-                  <div className="h-2 rounded-full bg-gradient-to-r from-amber-400 to-orange-400" style={{ width: `${pct}%` }} />
+                  <div className="h-2 rounded-full bg-linear-to-r from-amber-400 to-orange-400" style={{ width: `${pct}%` }} />
                 </div>
                 <p className="text-xs text-muted-foreground mt-0.5">{c.txnCount} transactions · {pct.toFixed(1)}%</p>
               </div>

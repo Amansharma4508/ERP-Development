@@ -1,13 +1,26 @@
-import jwt from 'jsonwebtoken';
-import bcrypt from 'bcryptjs';
+import * as jwt from 'jsonwebtoken';
+import * as bcrypt from 'bcryptjs';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
 const JWT_EXPIRY = '7d';
 
 export interface TokenPayload {
-  userId: string;
+  id?: string;
+  userId?: string;
   email: string;
-  role: 'user' | 'doctor' | 'admin' | 'logistics' | 'wallet_user';
+  fullName?: string;
+  role:
+    | 'admin'
+    | 'user'
+    | 'doctor'
+    | 'logistics'
+    | 'wallet_user'
+    | 'state_officer'
+    | 'district_officer'
+    | 'center_staff';
+  stateId?: string;
+  districtId?: string;
+  centerId?: string;
 }
 
 export async function hashPassword(password: string): Promise<string> {

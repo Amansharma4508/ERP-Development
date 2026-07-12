@@ -118,7 +118,7 @@ export default function EnrollmentPage() {
               <div key={step.key} className="flex gap-4">
                 {/* Timeline line */}
                 <div className="flex flex-col items-center">
-                  <div className={`w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 border-2 transition-all
+                  <div className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 border-2 transition-all
                     ${isDone
                       ? 'bg-teal-500 border-teal-500 text-white shadow-lg shadow-teal-200'
                       : isCurrent

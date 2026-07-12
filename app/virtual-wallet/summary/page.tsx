@@ -38,9 +38,10 @@ export default function SummaryPage() {
   const today = new Date().toLocaleDateString('en-IN', { day:'2-digit', month:'long', year:'numeric' });
 
   // All three figures from same source: summary object from API
-  const masterCN   = creditNotes.find((cn: any) => cn.isMaster);
+  const masterCN = creditNotes.find((cn: any) => cn.isMaster);
   const nonMasterTotal = summary.totalCreditNotes;           // API: sum of non-master notes only
-  const masterTotal    = summary.masterCreditNoteAmount;     // API: MCN amount
+  const masterTotal = summary.masterCreditNoteAmount;        // API: MCN amount
+  const totalCreditNotesValue = summary.totalCreditNotesValue; // API: sum of all credit notes records
   const ledgerCreditTotal = summary.ledgerCredits;           // API: sum of posted credit ledger entries
 
   // Validate: non-master total should not exceed allocation
@@ -91,7 +92,7 @@ export default function SummaryPage() {
       {/* Audit check banner */}
       {!auditOk ? (
         <div className="flex items-center gap-3 px-5 py-3 rounded-2xl bg-red-50 border border-red-300 text-red-700 text-sm">
-          <AlertCircle size={18} className="flex-shrink-0" />
+          <AlertCircle size={18} className="shrink-0" />
           <div>
             <p className="font-bold">Audit Warning</p>
             <p className="text-xs mt-0.5">{summary.creditNoteAuditWarning}</p>
@@ -99,14 +100,14 @@ export default function SummaryPage() {
         </div>
       ) : (
         <div className="flex items-center gap-3 px-5 py-3 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-700 text-sm">
-          <CheckCircle2 size={18} className="flex-shrink-0" />
+          <CheckCircle2 size={18} className="shrink-0" />
           <p className="text-xs font-medium">Audit OK — Non-master credit note total (₹{nonMasterTotal.toLocaleString()}) is within wallet allocation (₹{summary.allocatedAmount.toLocaleString()}).</p>
         </div>
       )}
 
       {/* Account header */}
       <div className="bg-card rounded-2xl border border-border p-5 flex items-center gap-5 flex-wrap">
-        <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-white font-bold text-xl flex-shrink-0"
+        <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-white font-bold text-xl shrink-0"
           style={{ background: 'linear-gradient(135deg,#0d9488,#0891b2)' }}>
           {user.fullName.split(' ').map((w: string) => w[0]).join('').slice(0,2).toUpperCase()}
         </div>
@@ -127,13 +128,25 @@ export default function SummaryPage() {
           <h3 className="font-semibold text-foreground">Financial Summary</h3>
           <span className="text-xs text-muted-foreground">All figures from single API source</span>
         </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-5">
+          {[
+            { label: 'Total Credit Notes Value',   value: `₹${totalCreditNotesValue.toLocaleString()}`,   color: 'text-blue-600',  sub: 'Master + transaction notes' },
+            { label: 'Master Credit Note Total',   value: `₹${masterTotal.toLocaleString()}`,             color: 'text-indigo-600', sub: 'Initial capital allocation' },
+            { label: 'Non-Master Credit Notes',    value: `₹${nonMasterTotal.toLocaleString()}`,           color: 'text-teal-600',  sub: 'Transaction level credits' },
+          ].map(({ label, value, color, sub }) => (
+            <div key={label} className="rounded-2xl bg-muted p-4 border border-border">
+              <p className="text-xs text-muted-foreground uppercase tracking-[0.15em] mb-2">{label}</p>
+              <p className={`text-2xl font-bold ${color}`}>{value}</p>
+              <p className="text-xs text-muted-foreground mt-2">{sub}</p>
+            </div>
+          ))}
+        </div>
         <div className="divide-y divide-border">
           {[
             { label: 'Total State Allocation',    value: `₹${summary.allocatedAmount.toLocaleString()}`,      isCredit: true,  bold: true  },
             { label: 'Offline Expenses (posted)',  value: `-₹${summary.totalOfflineSpent.toLocaleString()}`,   isCredit: false, bold: false },
             { label: 'Online Expenses (success)',  value: `-₹${summary.totalOnlineSpent.toLocaleString()}`,    isCredit: false, bold: false },
             { label: 'Total Spent',                value: `-₹${summary.totalSpent.toLocaleString()}`,          isCredit: false, bold: true  },
-            { label: 'Non-Master Credit Notes',    value: `+₹${nonMasterTotal.toLocaleString()}`,              isCredit: true,  bold: false },
             { label: 'Net Ledger Position',        value: `₹${Math.abs(summary.netLedger).toLocaleString()}`,  isCredit: summary.netLedger >= 0, bold: true },
             { label: 'Remaining Balance',          value: `₹${summary.remainingBalance.toLocaleString()}`,     isCredit: true,  bold: true  },
           ].map(({ label, value, isCredit, bold }) => (
@@ -211,7 +224,7 @@ export default function SummaryPage() {
           {pipelineSteps.map((step, i) => (
             <div key={step.label} className="flex gap-4">
               <div className="flex flex-col items-center">
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 border-2
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 border-2
                   ${step.done ? 'bg-teal-500 border-teal-500 text-white' : 'bg-muted border-border text-muted-foreground'}`}>
                   {step.done ? <CheckCircle2 size={14} /> : <span className="text-xs font-bold">{i+1}</span>}
                 </div>
@@ -221,7 +234,7 @@ export default function SummaryPage() {
               </div>
               <div className={`pb-5 ${i === pipelineSteps.length - 1 ? 'pb-0' : ''} flex items-start justify-between w-full`}>
                 <p className={`text-sm font-medium mt-1 ${step.done ? 'text-foreground' : 'text-muted-foreground'}`}>{step.label}</p>
-                <span className={`text-xs font-semibold mt-1 ml-2 flex-shrink-0 ${step.done ? 'text-emerald-600' : 'text-amber-600'}`}>{step.value}</span>
+                <span className={`text-xs font-semibold mt-1 ml-2 shrink-0 ${step.done ? 'text-emerald-600' : 'text-amber-600'}`}>{step.value}</span>
               </div>
             </div>
           ))}

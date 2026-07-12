@@ -987,6 +987,52 @@ export interface VirtualWalletUser {
   centerAssigned: string;       // S1 / S2 / S3 / DHS
   dispatchDate?: string;
   activationDate?: string;
+  fatherName?: string;
+  motherName?: string;
+  dob?: string;
+  gender?: 'male' | 'female' | 'other';
+  qualification?: string;
+  familyMembersCount?: number;
+  maleCount?: number;
+  femaleCount?: number;
+  familyMembers?: Array<{
+    name: string;
+    dob: string;
+    gender: 'male' | 'female' | 'other';
+    relationship: string;
+    uid: string;
+  }>;
+  headOfFamily?: string;
+  spouseName?: string;
+  houseNumber?: string;
+  wardNumber?: string;
+  villageCity?: string;
+  gramPanchayat?: string;
+  block?: string;
+  district?: string;
+  state?: string;
+  pinCode?: string;
+  uidNumber?: string;
+  panCard?: string;
+  addressId?: string;
+  bloodGroup?: string;
+  foodIntake?: 'vegetarian' | 'non_vegetarian' | 'vegan';
+  smoking?: 'regular' | 'irregular' | 'party';
+  alcoholConsumption?: 'regular' | 'irregular' | 'party';
+  occupation?: string;
+  medicalExpensesMonthly?: number;
+  drinkingWaterSource?: string;
+  foodSource?: string;
+  pollutionLevel?: string;
+  livePhotoUrl?: string;
+  applicationDate?: string;
+  place?: string;
+  time?: string;
+  coordinatorId?: string;
+  fieldOfficerId?: string;
+  areaCode?: string;
+  vendingId?: string;
+  consentGiven?: boolean;
   // Fund allocation
   allocatedAmount: number;      // ₹35,000
   stateWalletBalance: number;
@@ -1050,16 +1096,17 @@ export interface OfflineTransaction {
   innerNetRef: string;       // inner net detail reference
   attendedBy: string;
   date: string;
+  familyMemberUid?: string;
   status: 'posted' | 'pending' | 'reversed';
 }
 
 export const offlineTransactions: OfflineTransaction[] = [
-  { id: 'ot1', userId: 'vw1', center: 'S1', centerName: 'S1 Center Delhi',    serviceType: 'OPD',        amount: 500,  description: 'General OPD consultation',         innerNetRef: 'INET-S1-001', attendedBy: 'Dr. Meena',        date: '2025-07-01', status: 'posted'  },
-  { id: 'ot2', userId: 'vw1', center: 'S1', centerName: 'S1 Center Delhi',    serviceType: 'Lab',        amount: 850,  description: 'CBC + Lipid Profile',              innerNetRef: 'INET-S1-002', attendedBy: 'Lab Technician',  date: '2025-07-03', status: 'posted'  },
-  { id: 'ot3', userId: 'vw1', center: 'S2', centerName: 'S2 Hub Noida',       serviceType: 'Pharmacy',   amount: 320,  description: 'Paracetamol + Metformin',          innerNetRef: 'INET-S2-001', attendedBy: 'Pharmacist Raju', date: '2025-07-05', status: 'posted'  },
-  { id: 'ot4', userId: 'vw1', center: 'DHS',centerName: 'DHS Point Gurugram', serviceType: 'Diagnostics',amount: 1200, description: 'ECG + X-Ray chest',               innerNetRef: 'INET-DHS-001',attendedBy: 'Dr. Vikas',       date: '2025-07-08', status: 'posted'  },
-  { id: 'ot5', userId: 'vw1', center: 'S3', centerName: 'S3 Center Faridabad',serviceType: 'IPD',        amount: 4500, description: 'Day care procedure',              innerNetRef: 'INET-S3-001', attendedBy: 'Dr. Anita',       date: '2025-06-20', status: 'posted'  },
-  { id: 'ot6', userId: 'vw1', center: 'S1', centerName: 'S1 Center Delhi',    serviceType: 'Other',      amount: 150,  description: 'Administrative fee',              innerNetRef: 'INET-S1-003', attendedBy: 'Staff',           date: '2025-06-15', status: 'reversed'},
+  { id: 'ot1', userId: 'vw1', center: 'S1', centerName: 'S1 Center Delhi',    serviceType: 'OPD',        amount: 500,  description: 'General OPD consultation',         innerNetRef: 'INET-S1-001', attendedBy: 'Dr. Meena',        date: '2025-07-01', status: 'posted',   familyMemberUid: 'UID-SHARMA-001' },
+  { id: 'ot2', userId: 'vw1', center: 'S1', centerName: 'S1 Center Delhi',    serviceType: 'Lab',        amount: 850,  description: 'CBC + Lipid Profile',              innerNetRef: 'INET-S1-002', attendedBy: 'Lab Technician',  date: '2025-07-03', status: 'posted',   familyMemberUid: 'UID-SHARMA-002' },
+  { id: 'ot3', userId: 'vw1', center: 'S2', centerName: 'S2 Hub Noida',       serviceType: 'Pharmacy',   amount: 320,  description: 'Paracetamol + Metformin',          innerNetRef: 'INET-S2-001', attendedBy: 'Pharmacist Raju', date: '2025-07-05', status: 'posted',   familyMemberUid: 'UID-SHARMA-003' },
+  { id: 'ot4', userId: 'vw1', center: 'DHS',centerName: 'DHS Point Gurugram', serviceType: 'Diagnostics',amount: 1200, description: 'ECG + X-Ray chest',               innerNetRef: 'INET-DHS-001',attendedBy: 'Dr. Vikas',       date: '2025-07-08', status: 'posted',   familyMemberUid: 'UID-SHARMA-001' },
+  { id: 'ot5', userId: 'vw1', center: 'S3', centerName: 'S3 Center Faridabad',serviceType: 'IPD',        amount: 4500, description: 'Day care procedure',              innerNetRef: 'INET-S3-001', attendedBy: 'Dr. Anita',       date: '2025-06-20', status: 'posted',   familyMemberUid: 'UID-SHARMA-004' },
+  { id: 'ot6', userId: 'vw1', center: 'S1', centerName: 'S1 Center Delhi',    serviceType: 'Other',      amount: 150,  description: 'Administrative fee',              innerNetRef: 'INET-S1-003', attendedBy: 'Staff',           date: '2025-06-15', status: 'reversed', familyMemberUid: 'UID-SHARMA-001' },
 ];
 
 // ── Online Transactions (Payment Gateway — Teleconsult / E-Medicine) ──────
@@ -1072,16 +1119,17 @@ export interface OnlineTransaction {
   amount: number;
   description: string;
   creditNoteRef?: string;
+  familyMemberUid?: string;
   status: 'success' | 'failed' | 'refunded' | 'pending';
   date: string;
 }
 
 export const onlineTransactions: OnlineTransaction[] = [
-  { id: 'ont1', userId: 'vw1', channel: 'teleconsult',  gateway: 'Razorpay', gatewayRef: 'RZP-20250705-001', amount: 150,  description: 'Teleconsult — Dr. Sarah Smith',    creditNoteRef: 'CN-001', status: 'success', date: '2025-07-05' },
-  { id: 'ont2', userId: 'vw1', channel: 'e_medicine',   gateway: 'Razorpay', gatewayRef: 'RZP-20250706-002', amount: 210,  description: 'E-Medicine order — PHARM-001',     creditNoteRef: 'CN-002', status: 'success', date: '2025-07-06' },
-  { id: 'ont3', userId: 'vw1', channel: 'lab_booking',  gateway: 'Razorpay', gatewayRef: 'RZP-20250708-003', amount: 650,  description: 'Lab booking — Thyroid panel',                       status: 'success', date: '2025-07-08' },
-  { id: 'ont4', userId: 'vw1', channel: 'teleconsult',  gateway: 'Razorpay', gatewayRef: 'RZP-20250709-004', amount: 200,  description: 'Teleconsult — Dr. James Wilson',                    status: 'pending', date: '2025-07-09' },
-  { id: 'ont5', userId: 'vw1', channel: 'therapy',      gateway: 'Razorpay', gatewayRef: 'RZP-20250703-005', amount: 500,  description: 'Mental health therapy session',    creditNoteRef: 'CN-003', status: 'refunded',date: '2025-07-03' },
+  { id: 'ont1', userId: 'vw1', channel: 'teleconsult',  gateway: 'Razorpay', gatewayRef: 'RZP-20250705-001', amount: 150,  description: 'Teleconsult — Dr. Sarah Smith',    creditNoteRef: 'CN-001', status: 'success', date: '2025-07-05', familyMemberUid: 'UID-SHARMA-001' },
+  { id: 'ont2', userId: 'vw1', channel: 'e_medicine',   gateway: 'Razorpay', gatewayRef: 'RZP-20250706-002', amount: 210,  description: 'E-Medicine order — PHARM-001',     creditNoteRef: 'CN-002', status: 'success', date: '2025-07-06', familyMemberUid: 'UID-SHARMA-002' },
+  { id: 'ont3', userId: 'vw1', channel: 'lab_booking',  gateway: 'Razorpay', gatewayRef: 'RZP-20250708-003', amount: 650,  description: 'Lab booking — Thyroid panel',                       status: 'success', date: '2025-07-08', familyMemberUid: 'UID-SHARMA-003' },
+  { id: 'ont4', userId: 'vw1', channel: 'teleconsult',  gateway: 'Razorpay', gatewayRef: 'RZP-20250709-004', amount: 200,  description: 'Teleconsult — Dr. James Wilson',                    status: 'pending', date: '2025-07-09', familyMemberUid: 'UID-SHARMA-001' },
+  { id: 'ont5', userId: 'vw1', channel: 'therapy',      gateway: 'Razorpay', gatewayRef: 'RZP-20250703-005', amount: 500,  description: 'Mental health therapy session',    creditNoteRef: 'CN-003', status: 'refunded',date: '2025-07-03', familyMemberUid: 'UID-SHARMA-001' },
 ];
 
 // ── Main Ledger Entry System ───────────────────────────────────────────────

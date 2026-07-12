@@ -1,0 +1,93 @@
+﻿.next/dev/types/validator.ts(351,31): error TS2344: Type 'typeof import("C:/Users/vinod/Downloads/erp-development/app/api/care/[id]/route")' does not satisfy the constraint 'RouteHandlerConfig<"/api/care/[id]">'.
+  Types of property 'PATCH' are incompatible.
+    Type '(req: NextRequest, { params }: { params: { id: string; }; }) => Promise<NextResponse<{ error: string; }> | NextResponse<{ success: boolean; data: CareBooking; }>>' is not assignable to type '(request: NextRequest, context: { params: Promise<{ id: string; }>; }) => void | Response | Promise<void | Response>'.
+      Types of parameters '__1' and 'context' are incompatible.
+        Type '{ params: Promise<{ id: string; }>; }' is not assignable to type '{ params: { id: string; }; }'.
+          Types of property 'params' are incompatible.
+            Property 'id' is missing in type 'Promise<{ id: string; }>' but required in type '{ id: string; }'.
+.next/dev/types/validator.ts(405,31): error TS2344: Type 'typeof import("C:/Users/vinod/Downloads/erp-development/app/api/doctor-panel/remarks/[id]/route")' does not satisfy the constraint 'RouteHandlerConfig<"/api/doctor-panel/remarks/[id]">'.
+  Types of property 'DELETE' are incompatible.
+    Type '(req: NextRequest, { params }: { params: { id: string; }; }) => Promise<NextResponse<{ error: string; }> | NextResponse<{ success: boolean; }>>' is not assignable to type '(request: NextRequest, context: { params: Promise<{ id: string; }>; }) => void | Response | Promise<void | Response>'.
+      Types of parameters '__1' and 'context' are incompatible.
+        Type '{ params: Promise<{ id: string; }>; }' is not assignable to type '{ params: { id: string; }; }'.
+          Types of property 'params' are incompatible.
+            Property 'id' is missing in type 'Promise<{ id: string; }>' but required in type '{ id: string; }'.
+.next/dev/types/validator.ts(423,31): error TS2344: Type 'typeof import("C:/Users/vinod/Downloads/erp-development/app/api/doctor-panel/tasks/[id]/route")' does not satisfy the constraint 'RouteHandlerConfig<"/api/doctor-panel/tasks/[id]">'.
+  Types of property 'PATCH' are incompatible.
+    Type '(req: NextRequest, { params }: { params: { id: string; }; }) => Promise<NextResponse<{ error: string; }> | NextResponse<{ success: boolean; data: DoctorTask; }>>' is not assignable to type '(request: NextRequest, context: { params: Promise<{ id: string; }>; }) => void | Response | Promise<void | Response>'.
+      Types of parameters '__1' and 'context' are incompatible.
+        Type '{ params: Promise<{ id: string; }>; }' is not assignable to type '{ params: { id: string; }; }'.
+          Types of property 'params' are incompatible.
+            Property 'id' is missing in type 'Promise<{ id: string; }>' but required in type '{ id: string; }'.
+.next/dev/types/validator.ts(621,31): error TS2344: Type 'typeof import("C:/Users/vinod/Downloads/erp-development/app/api/pharmacy/[id]/route")' does not satisfy the constraint 'RouteHandlerConfig<"/api/pharmacy/[id]">'.
+  Types of property 'PATCH' are incompatible.
+    Type '(req: NextRequest, { params }: { params: { id: string; }; }) => Promise<NextResponse<{ error: string; }> | NextResponse<{ success: boolean; data: PharmacyOrder; }>>' is not assignable to type '(request: NextRequest, context: { params: Promise<{ id: string; }>; }) => void | Response | Promise<void | Response>'.
+      Types of parameters '__1' and 'context' are incompatible.
+        Type '{ params: Promise<{ id: string; }>; }' is not assignable to type '{ params: { id: string; }; }'.
+          Types of property 'params' are incompatible.
+            Property 'id' is missing in type 'Promise<{ id: string; }>' but required in type '{ id: string; }'.
+.next/dev/types/validator.ts(639,31): error TS2344: Type 'typeof import("C:/Users/vinod/Downloads/erp-development/app/api/support/[id]/route")' does not satisfy the constraint 'RouteHandlerConfig<"/api/support/[id]">'.
+  Types of property 'PATCH' are incompatible.
+    Type '(req: NextRequest, { params }: { params: { id: string; }; }) => Promise<NextResponse<{ error: string; }> | NextResponse<{ success: boolean; data: SupportTicket; }>>' is not assignable to type '(request: NextRequest, context: { params: Promise<{ id: string; }>; }) => void | Response | Promise<void | Response>'.
+      Types of parameters '__1' and 'context' are incompatible.
+        Type '{ params: Promise<{ id: string; }>; }' is not assignable to type '{ params: { id: string; }; }'.
+          Types of property 'params' are incompatible.
+            Property 'id' is missing in type 'Promise<{ id: string; }>' but required in type '{ id: string; }'.
+.next/types/validator.ts(351,31): error TS2344: Type 'typeof import("C:/Users/vinod/Downloads/erp-development/app/api/care/[id]/route")' does not satisfy the constraint 'RouteHandlerConfig<"/api/care/[id]">'.
+  Types of property 'PATCH' are incompatible.
+    Type '(req: NextRequest, { params }: { params: { id: string; }; }) => Promise<NextResponse<{ error: string; }> | NextResponse<{ success: boolean; data: CareBooking; }>>' is not assignable to type '(request: NextRequest, context: { params: Promise<{ id: string; }>; }) => void | Response | Promise<void | Response>'.
+      Types of parameters '__1' and 'context' are incompatible.
+        Type '{ params: Promise<{ id: string; }>; }' is not assignable to type '{ params: { id: string; }; }'.
+          Types of property 'params' are incompatible.
+            Property 'id' is missing in type 'Promise<{ id: string; }>' but required in type '{ id: string; }'.
+.next/types/validator.ts(405,31): error TS2344: Type 'typeof import("C:/Users/vinod/Downloads/erp-development/app/api/doctor-panel/remarks/[id]/route")' does not satisfy the constraint 'RouteHandlerConfig<"/api/doctor-panel/remarks/[id]">'.
+  Types of property 'DELETE' are incompatible.
+    Type '(req: NextRequest, { params }: { params: { id: string; }; }) => Promise<NextResponse<{ error: string; }> | NextResponse<{ success: boolean; }>>' is not assignable to type '(request: NextRequest, context: { params: Promise<{ id: string; }>; }) => void | Response | Promise<void | Response>'.
+      Types of parameters '__1' and 'context' are incompatible.
+        Type '{ params: Promise<{ id: string; }>; }' is not assignable to type '{ params: { id: string; }; }'.
+          Types of property 'params' are incompatible.
+            Property 'id' is missing in type 'Promise<{ id: string; }>' but required in type '{ id: string; }'.
+.next/types/validator.ts(423,31): error TS2344: Type 'typeof import("C:/Users/vinod/Downloads/erp-development/app/api/doctor-panel/tasks/[id]/route")' does not satisfy the constraint 'RouteHandlerConfig<"/api/doctor-panel/tasks/[id]">'.
+  Types of property 'PATCH' are incompatible.
+    Type '(req: NextRequest, { params }: { params: { id: string; }; }) => Promise<NextResponse<{ error: string; }> | NextResponse<{ success: boolean; data: DoctorTask; }>>' is not assignable to type '(request: NextRequest, context: { params: Promise<{ id: string; }>; }) => void | Response | Promise<void | Response>'.
+      Types of parameters '__1' and 'context' are incompatible.
+        Type '{ params: Promise<{ id: string; }>; }' is not assignable to type '{ params: { id: string; }; }'.
+          Types of property 'params' are incompatible.
+            Property 'id' is missing in type 'Promise<{ id: string; }>' but required in type '{ id: string; }'.
+.next/types/validator.ts(621,31): error TS2344: Type 'typeof import("C:/Users/vinod/Downloads/erp-development/app/api/pharmacy/[id]/route")' does not satisfy the constraint 'RouteHandlerConfig<"/api/pharmacy/[id]">'.
+  Types of property 'PATCH' are incompatible.
+    Type '(req: NextRequest, { params }: { params: { id: string; }; }) => Promise<NextResponse<{ error: string; }> | NextResponse<{ success: boolean; data: PharmacyOrder; }>>' is not assignable to type '(request: NextRequest, context: { params: Promise<{ id: string; }>; }) => void | Response | Promise<void | Response>'.
+      Types of parameters '__1' and 'context' are incompatible.
+        Type '{ params: Promise<{ id: string; }>; }' is not assignable to type '{ params: { id: string; }; }'.
+          Types of property 'params' are incompatible.
+            Property 'id' is missing in type 'Promise<{ id: string; }>' but required in type '{ id: string; }'.
+.next/types/validator.ts(639,31): error TS2344: Type 'typeof import("C:/Users/vinod/Downloads/erp-development/app/api/support/[id]/route")' does not satisfy the constraint 'RouteHandlerConfig<"/api/support/[id]">'.
+  Types of property 'PATCH' are incompatible.
+    Type '(req: NextRequest, { params }: { params: { id: string; }; }) => Promise<NextResponse<{ error: string; }> | NextResponse<{ success: boolean; data: SupportTicket; }>>' is not assignable to type '(request: NextRequest, context: { params: Promise<{ id: string; }>; }) => void | Response | Promise<void | Response>'.
+      Types of parameters '__1' and 'context' are incompatible.
+        Type '{ params: Promise<{ id: string; }>; }' is not assignable to type '{ params: { id: string; }; }'.
+          Types of property 'params' are incompatible.
+            Property 'id' is missing in type 'Promise<{ id: string; }>' but required in type '{ id: string; }'.
+app/api/care/route.ts(9,63): error TS2339: Property 'id' does not exist on type 'TokenPayload'.
+app/api/care/route.ts(20,18): error TS2339: Property 'id' does not exist on type 'TokenPayload'.
+app/api/demographics/route.ts(9,57): error TS2339: Property 'id' does not exist on type 'TokenPayload'.
+app/api/demographics/route.ts(18,61): error TS2339: Property 'id' does not exist on type 'TokenPayload'.
+app/api/demographics/route.ts(19,45): error TS2339: Property 'id' does not exist on type 'TokenPayload'.
+app/api/doctor-panel/assistants/route.ts(9,51): error TS2339: Property 'id' does not exist on type 'TokenPayload'.
+app/api/doctor-panel/assistants/route.ts(18,51): error TS2339: Property 'id' does not exist on type 'TokenPayload'.
+app/api/doctor-panel/leave/route.ts(9,51): error TS2339: Property 'id' does not exist on type 'TokenPayload'.
+app/api/doctor-panel/leave/route.ts(18,51): error TS2339: Property 'id' does not exist on type 'TokenPayload'.
+app/api/doctor-panel/remarks/route.ts(9,51): error TS2339: Property 'id' does not exist on type 'TokenPayload'.
+app/api/doctor-panel/remarks/route.ts(18,51): error TS2339: Property 'id' does not exist on type 'TokenPayload'.
+app/api/doctor-panel/tasks/route.ts(9,51): error TS2339: Property 'id' does not exist on type 'TokenPayload'.
+app/api/doctor-panel/tasks/route.ts(18,51): error TS2339: Property 'id' does not exist on type 'TokenPayload'.
+app/api/earn/route.ts(9,67): error TS2339: Property 'id' does not exist on type 'TokenPayload'.
+app/api/earn/route.ts(21,18): error TS2339: Property 'id' does not exist on type 'TokenPayload'.
+app/api/pharmacy/route.ts(11,52): error TS2339: Property 'id' does not exist on type 'TokenPayload'.
+app/api/pharmacy/route.ts(23,18): error TS2339: Property 'id' does not exist on type 'TokenPayload'.
+app/api/pharmacy/route.ts(24,20): error TS2339: Property 'fullName' does not exist on type 'TokenPayload'.
+app/api/support/route.ts(11,52): error TS2339: Property 'id' does not exist on type 'TokenPayload'.
+app/api/support/route.ts(23,18): error TS2339: Property 'id' does not exist on type 'TokenPayload'.
+app/api/support/route.ts(24,20): error TS2339: Property 'fullName' does not exist on type 'TokenPayload'.
+lib/schemas/user.ts(24,14): error TS2554: Expected 2-3 arguments, but got 1.
+lib/schemas/wallet.ts(16,11): error TS2554: Expected 2-3 arguments, but got 1.

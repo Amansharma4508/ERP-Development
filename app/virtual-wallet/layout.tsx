@@ -39,7 +39,7 @@ export default function VirtualWalletLayout({ children }: { children: React.Reac
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-teal-50 to-cyan-50">
+      <div className="min-h-screen flex items-center justify-center bg-linear-to-br from-teal-50 to-cyan-50">
         <div className="text-center">
           <div className="w-14 h-14 rounded-2xl mx-auto mb-4 flex items-center justify-center animate-pulse"
             style={{ background: 'linear-gradient(135deg,#0d9488,#0891b2)' }}>
@@ -57,8 +57,8 @@ export default function VirtualWalletLayout({ children }: { children: React.Reac
   const SidebarContent = () => (
     <div className="flex flex-col h-full">
       {/* Logo */}
-      <div className="flex items-center gap-3 px-5 h-16 border-b border-teal-700/40 flex-shrink-0">
-        <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
+      <div className="flex items-center gap-3 px-5 h-16 border-b border-teal-700/40 shrink-0">
+        <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
           style={{ background: 'linear-gradient(135deg,#0d9488,#0891b2)' }}>
           <Wallet size={18} className="text-white" />
         </div>
@@ -79,23 +79,23 @@ export default function VirtualWalletLayout({ children }: { children: React.Reac
                 ${active
                   ? 'bg-teal-500/30 text-white border border-teal-400/30'
                   : 'text-teal-100/80 hover:bg-teal-500/20 hover:text-white'}`}>
-              <item.Icon size={17} className="flex-shrink-0" />
+              <item.Icon size={17} className="shrink-0" />
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium leading-tight truncate">{item.name}</p>
                 <p className={`text-xs truncate ${active ? 'text-teal-200' : 'text-teal-400/70 group-hover:text-teal-300'}`}>
                   {item.desc}
                 </p>
               </div>
-              {active && <ChevronRight size={13} className="text-teal-300 flex-shrink-0" />}
+              {active && <ChevronRight size={13} className="text-teal-300 shrink-0" />}
             </Link>
-          );
+          )
         })}
       </nav>
 
       {/* User footer */}
-      <div className="p-3 border-t border-teal-700/40 flex-shrink-0">
+      <div className="p-3 border-t border-teal-700/40 shrink-0">
         <div className="flex items-center gap-3 mb-2">
-          <div className="w-9 h-9 rounded-xl flex items-center justify-center text-white text-sm font-bold flex-shrink-0"
+          <div className="w-9 h-9 rounded-xl flex items-center justify-center text-white text-sm font-bold shrink-0"
             style={{ background: 'linear-gradient(135deg,#0d9488,#0891b2)' }}>
             {initials}
           </div>
@@ -124,7 +124,7 @@ export default function VirtualWalletLayout({ children }: { children: React.Reac
       )}
 
       {/* Sidebar desktop */}
-      <aside className="hidden lg:flex flex-col w-64 flex-shrink-0"
+      <aside className="hidden lg:flex flex-col w-64 shrink-0"
         style={{ background: 'linear-gradient(180deg, #0f766e 0%, #0e7490 100%)' }}>
         <SidebarContent />
       </aside>
@@ -139,7 +139,7 @@ export default function VirtualWalletLayout({ children }: { children: React.Reac
       {/* Main */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* Topbar */}
-        <header className="h-16 bg-card border-b border-border flex items-center px-4 lg:px-6 gap-4 flex-shrink-0 sticky top-0 z-20">
+        <header className="h-16 bg-card border-b border-border flex items-center px-4 lg:px-6 gap-4 shrink-0 sticky top-0 z-20">
           <button onClick={() => setMobileOpen(true)}
             className="lg:hidden w-9 h-9 rounded-xl hover:bg-muted flex items-center justify-center text-muted-foreground transition">
             <Menu size={18} />
@@ -153,7 +153,7 @@ export default function VirtualWalletLayout({ children }: { children: React.Reac
 
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2">
-              <div className="w-6 h-6 rounded-lg flex items-center justify-center flex-shrink-0"
+              <div className="w-6 h-6 rounded-lg flex items-center justify-center shrink-0"
                 style={{ background: 'linear-gradient(135deg,#0d9488,#0891b2)' }}>
                 {currentNav ? <currentNav.Icon size={13} className="text-white" /> : <Wallet size={13} className="text-white" />}
               </div>

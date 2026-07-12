@@ -63,7 +63,7 @@ export default function CenterWalletPage() {
           const colors = CENTER_COLOR[c.center] ?? { bg: 'from-gray-400 to-gray-500', badge: 'bg-muted text-muted-foreground' };
           return (
             <button key={c.center} onClick={() => setActiveCenter(c.center === activeCenter ? 'ALL' : c.center)}
-              className={`bg-gradient-to-br ${colors.bg} rounded-2xl p-5 text-white shadow-lg transition-all relative overflow-hidden
+              className={`bg-linear-to-br ${colors.bg} rounded-2xl p-5 text-white shadow-lg transition-all relative overflow-hidden
                 ${activeCenter === c.center ? 'ring-4 ring-white/50 scale-[1.02]' : 'hover:scale-[1.01]'}`}>
               <div className="absolute -top-4 -right-4 w-20 h-20 rounded-full bg-white/10" />
               <div className="relative z-10">
@@ -100,7 +100,7 @@ export default function CenterWalletPage() {
                   <span className="text-sm font-bold text-foreground">₹{total.toLocaleString()}</span>
                 </div>
                 <div className="w-full bg-muted rounded-full h-2 overflow-hidden">
-                  <div className="h-2 rounded-full bg-gradient-to-r from-teal-400 to-cyan-500 transition-all" style={{ width: `${pct}%` }} />
+                  <div className="h-2 rounded-full bg-linear-to-r from-teal-400 to-cyan-500 transition-all" style={{ width: `${pct}%` }} />
                 </div>
                 <p className="text-xs text-muted-foreground mt-0.5">{pct.toFixed(1)}% of offline spend</p>
               </div>
@@ -124,7 +124,7 @@ export default function CenterWalletPage() {
           <div className="flex gap-1 bg-muted p-1 rounded-xl overflow-x-auto">
             {['ALL','S1','S2','S3','DHS'].map((c) => (
               <button key={c} onClick={() => setActiveCenter(c)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition flex-shrink-0
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition shrink-0
                   ${activeCenter === c ? 'bg-white shadow text-foreground' : 'text-muted-foreground'}`}>
                 {c}
               </button>
@@ -146,7 +146,7 @@ export default function CenterWalletPage() {
             return (
               <div key={t.id} className={`flex items-start justify-between px-5 py-4 hover:bg-muted transition ${t.status === 'reversed' ? 'opacity-60' : ''}`}>
                 <div className="flex items-start gap-3">
-                  <div className={`w-9 h-9 rounded-xl bg-gradient-to-br ${colors.bg} flex items-center justify-center flex-shrink-0`}>
+                  <div className={`w-9 h-9 rounded-xl bg-linear-to-br ${colors.bg} flex items-center justify-center shrink-0`}>
                     <Building2 size={15} className="text-white" />
                   </div>
                   <div>
@@ -164,7 +164,7 @@ export default function CenterWalletPage() {
                     </div>
                   </div>
                 </div>
-                <span className={`text-sm font-bold flex-shrink-0 ml-3 ${t.status === 'reversed' ? 'text-blue-400 line-through' : 'text-red-500'}`}>
+                <span className={`text-sm font-bold shrink-0 ml-3 ${t.status === 'reversed' ? 'text-blue-400 line-through' : 'text-red-500'}`}>
                   -₹{t.amount.toLocaleString()}
                 </span>
               </div>

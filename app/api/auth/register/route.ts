@@ -1,8 +1,17 @@
 import { NextRequest } from 'next/server';
 import { generateToken } from '@/lib/auth';
-import { RegisterSchema } from '@/lib/schemas';
+import { RegisterSchema, WalletUserApplicationSchema } from '@/lib/schemas';
 import { successResponse, errorResponse, toJson } from '@/lib/api-utils';
 import { users, wallets, logisticsUsers, virtualWalletUsers } from '@/lib/store';
+
+function buildSwabCardNumber(pinCode: string, centerAssigned: string, sequence: number) {
+  const prefix = '9990';
+  const cleanedPin = pinCode.replace(/\D/g, '').padStart(4, '0').slice(0, 4);
+  const centerMap: Record<string, string> = { S1: '001', S2: '002', S3: '003', DHS: '004' };
+  const centerCode = centerMap[centerAssigned] ?? '000';
+  const seq = String(sequence).padStart(4, '0');
+  return `${prefix}-${cleanedPin}-${centerCode}-${seq}`;
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -30,15 +39,66 @@ export async function POST(request: NextRequest) {
     }
 
     if (validatedData.role === 'wallet_user') {
-      const cardNum = `SWAB-${String(virtualWalletUsers.length + 1001).padStart(4,'0')}-${new Date().getFullYear()}`;
+      const application = WalletUserApplicationSchema.parse(body);
+      const sequence = virtualWalletUsers.length + 1;
+      const cardNum = buildSwabCardNumber(application.pinCode, application.centerAssigned, sequence);
       const today = new Date().toISOString().split('T')[0];
       const newVW = {
-        id: userId, email: validatedData.email, password: validatedData.password,
-        fullName: validatedData.fullName, role: 'wallet_user' as const,
-        cardNumber: cardNum, enrollmentDate: today, enrollmentStatus: 'enrolled' as const,
-        cardScanStatus: 'pending' as const, centerAssigned: 'S1',
-        allocatedAmount: 35000, stateWalletBalance: 35000,
-        masterLedgerBalance: 35000, offlineBalance: 35000, onlineBalance: 0,
+        id: userId,
+        email: application.email,
+        password: application.password,
+        fullName: application.fullName,
+        role: 'wallet_user' as const,
+        cardNumber: cardNum,
+        enrollmentDate: application.applicationDate ?? today,
+        enrollmentStatus: 'enrolled' as const,
+        cardScanStatus: 'pending' as const,
+        centerAssigned: application.centerAssigned,
+        allocatedAmount: 35000,
+        stateWalletBalance: 35000,
+        masterLedgerBalance: 35000,
+        offlineBalance: 35000,
+        onlineBalance: 0,
+        fatherName: application.fatherName,
+        motherName: application.motherName,
+        dob: application.dob,
+        gender: application.gender,
+        qualification: application.qualification,
+        familyMembersCount: application.familyMembersCount,
+        maleCount: application.maleCount,
+        femaleCount: application.femaleCount,
+        familyMembers: application.familyMembers,
+        headOfFamily: application.headOfFamily,
+        spouseName: application.spouseName,
+        houseNumber: application.houseNumber,
+        wardNumber: application.wardNumber,
+        villageCity: application.villageCity,
+        gramPanchayat: application.gramPanchayat,
+        block: application.block,
+        district: application.district,
+        state: application.state,
+        pinCode: application.pinCode,
+        uidNumber: application.uidNumber,
+        panCard: application.panCard,
+        addressId: application.addressId,
+        bloodGroup: application.bloodGroup,
+        foodIntake: application.foodIntake,
+        smoking: application.smoking,
+        alcoholConsumption: application.alcoholConsumption,
+        occupation: application.occupation,
+        medicalExpensesMonthly: application.medicalExpensesMonthly,
+        drinkingWaterSource: application.drinkingWaterSource,
+        foodSource: application.foodSource,
+        pollutionLevel: application.pollutionLevel,
+        livePhotoUrl: application.livePhotoUrl,
+        applicationDate: application.applicationDate ?? today,
+        place: application.place,
+        time: application.time,
+        coordinatorId: application.coordinatorId,
+        fieldOfficerId: application.fieldOfficerId,
+        areaCode: application.areaCode,
+        vendingId: application.vendingId,
+        consentGiven: application.consentGiven,
         createdAt: today,
       };
       virtualWalletUsers.push(newVW);
