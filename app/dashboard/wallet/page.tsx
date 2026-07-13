@@ -111,14 +111,14 @@ function CardApplicationForm() {
             <div className="flex items-start gap-3">
               <CheckCircle size={20} className="mt-0.5 shrink-0" />
               <div>
-                <p className="text-sm font-semibold">Your wallet details have been submitted successfully</p>
-                <p className="mt-1 text-sm text-emerald-700/80">{successMessage}</p>
+                <p className="text-sm font-semibold ">Your wallet details have been submitted successfully</p>
+                <p className="mt-1 text-sm text-emerald-700/80 font-medium">{successMessage}</p>
               </div>
             </div>
           </div>
           <div className="rounded-2xl border border-border bg-muted/50 p-4 text-sm text-muted-foreground">
-            <p>Your Savibhiman Wallet card is now being processed and will be updated within approximately 30 minutes.</p>
-            <p className="mt-1">You will see the status once your wallet card is in progress.</p>
+            <p className='font-medium font-muted-foreground'>Your Savibhiman Wallet card is now being processed and will be updated.</p>
+            <p className="mt-1 font-medium font-muted-foreground">You will see the status once your wallet card is in progress.</p>
           </div>
         </div>
       ) : (
@@ -312,9 +312,14 @@ export default function WalletPage() {
             </div>
             <div>
               <p className="text-lg font-semibold text-foreground">Savibhiman Wallet</p>
-              <p className="text-sm text-muted-foreground">A secure and simple wallet for everyday digital payments and account management.</p>
+              <p className="text-sm text-muted-foreground font-medium">A secure and simple wallet for everyday digital payments and account management.</p>
             </div>
+            
           </div>
+          <div>
+             <p className="text-sm text-muted-foreground font-medium pb-4">SVABHIMAN , the flagship healthcare arm of CDC India’s Project SWABHIMAN, is an integrated, multi-tier healthcare ecosystem engineered to redefine medical access, delivery, and affordability. operating on a highly specialised architecture of Deep Blue (representing trust and stability), *Vital Gold* (representing premium quality and prosperity), and Clinical White (representing absolute hygiene), our centers are transforming the healthcare landscape of India from the village level to mega-metropolitan standards.</p>
+
+            </div>
 
           <div className="grid gap-3 md:grid-cols-2 mb-5">
             {[

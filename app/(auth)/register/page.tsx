@@ -129,7 +129,7 @@ export default function RegisterPage() {
                     </button>
                   ))}
                 </div>
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-2 gap-2 loginDashboard">
                   {ROLES.slice(3).map((r) => (
                     <button type="button" key={r.value} onClick={() => setForm({ ...form, role: r.value })}
                       className={`flex flex-col items-center gap-1.5 py-3 px-3 rounded-xl border-2 transition-all text-sm font-medium

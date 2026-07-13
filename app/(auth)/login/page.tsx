@@ -88,7 +88,7 @@ export default function LoginPage() {
             ))}
           </div>
           {/* Virtual wallet highlight */}
-          <div className="mt-8 p-4 rounded-2xl bg-white/10 border border-white/20 backdrop-blur">
+          <div className="mt-8 p-4 rounded-2xl bg-white/10 border border-white/20 backdrop-blur hidden">
             <div className="flex items-center gap-3 mb-2">
               <div className="w-9 h-9 rounded-xl bg-teal-400/30 flex items-center justify-center">
                 <Wallet size={18} className="text-teal-300" />
@@ -164,7 +164,7 @@ export default function LoginPage() {
                   </button>
                 ))}
               </div>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-2 gap-2 loginDashboard">
                 {DEMO_ACCOUNTS.slice(3).map((acc) => (
                   <button key={acc.role} onClick={() => handleDemo(acc)} disabled={loading}
                     className={`flex flex-col items-center gap-1.5 py-3 px-2 rounded-xl border transition-all text-center
