@@ -28,7 +28,7 @@ export default function RegisterPage() {
       await register(form.email, form.password, form.fullName, form.role);
       if (form.role === 'wallet_user') router.push('/virtual-wallet');
       else if (form.role === 'logistics') router.push('/dashboard/logistics');
-      else router.push('/dashboard');
+      else router.push(form.role === 'user' ? '/onboarding/wallet' : '/dashboard');
     } catch (err: any) {
       setError(err.message || 'Registration failed');
     } finally { setLoading(false); }

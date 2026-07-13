@@ -26,9 +26,9 @@ export default function LoginPage() {
   const [loading, setLoading]   = useState(false);
 
   const handleRedirect = (role: string) => {
-    if (role === 'logistics')    router.push('/dashboard/logistics');
+    if (role === 'logistics') router.push('/dashboard/logistics');
     else if (role === 'wallet_user') router.push('/virtual-wallet');
-    else                         router.push('/dashboard');
+    else router.push(role === 'user' ? '/onboarding/wallet' : '/dashboard');
   };
 
   const handleSubmit = async (e: React.FormEvent) => {

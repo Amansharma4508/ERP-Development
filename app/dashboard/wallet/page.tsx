@@ -7,6 +7,7 @@ import {
   AlertCircle, X, CreditCard, Wallet, Smartphone, Receipt,
   TrendingUp, TrendingDown, History,
 } from 'lucide-react';
+import WalletOnboardingForm from '@/components/wallet-onboarding-form';
 
 interface Transaction {
   id: string; type: 'credit' | 'debit';
@@ -231,7 +232,7 @@ function CardApplicationForm() {
 }
 
 export default function WalletPage() {
-  const { token } = useAuth();
+  const { token, user, walletOnboardingStatus, setWalletOnboardingStatus } = useAuth();
   const [balance, setBalance]           = useState(0);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [payments, setPayments]         = useState<PaymentRecord[]>([]);
@@ -304,7 +305,12 @@ export default function WalletPage() {
         <p className="text-muted-foreground text-sm mt-1">Manage your balance and payment history</p>
       </div>
 
-      {!showApplicationForm ? (
+      {user?.role === 'user' && (walletOnboardingStatus === 'pending' || walletOnboardingStatus === 'in-progress') ? (
+        <div className="rounded-3xl border border-amber-200 bg-amber-50 p-6 shadow-sm">
+          <p className="text-lg font-semibold text-foreground">Your wallet is in progress</p>
+          <p className="mt-2 text-sm text-muted-foreground">Your onboarding details are being reviewed. Wallet balance, top-up actions, and related shortcuts stay hidden until approval.</p>
+        </div>
+      ) : !showApplicationForm ? (
         <div className="rounded-3xl border border-border bg-card p-6 shadow-sm">
           <div className="flex items-center gap-3 mb-5">
             <div className="rounded-2xl bg-teal-100 p-3 text-teal-700">
@@ -344,7 +350,7 @@ export default function WalletPage() {
           </button>
         </div>
       ) : (
-        <CardApplicationForm />
+        <WalletOnboardingForm onSubmitted={() => { setShowApplicationForm(false); setWalletOnboardingStatus('in-progress'); }} />
       )}
 
       {loading ? (

@@ -3,6 +3,7 @@
 import { useAuth } from '@/lib/auth-context';
 import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
+import { useRouter, useSearchParams } from 'next/navigation';
 import {
   CalendarDays, Clock, HeartPulse, Wallet, ShoppingCart, AlertTriangle,
   Stethoscope, TrendingUp, TrendingDown, DollarSign, Target, CheckCircle,
@@ -44,9 +45,12 @@ const STATUS_STYLE: Record<string, string> = {
 };
 
 export default function DashboardPage() {
-  const { user, token } = useAuth();
+  const { user, token, walletOnboardingStatus, setWalletOnboardingStatus } = useAuth();
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const [stats, setStats] = useState<Stats>({});
   const [loading, setLoading] = useState(true);
+  const hideWalletUi = user?.role === 'user' && walletOnboardingStatus === 'in-progress';
 
   const fetchStats = useCallback(async () => {
     if (!token) return;
@@ -92,13 +96,22 @@ export default function DashboardPage() {
         </div>
       </div>
 
+      {hideWalletUi && (
+        <div className="rounded-3xl border border-amber-200 bg-amber-50/80 p-5 text-amber-700">
+          <p className="font-semibold">Your wallet is in progress</p>
+          <p className="mt-1 text-sm">Wallet balance, top-up actions, and wallet shortcuts stay hidden until your application is approved.</p>
+        </div>
+      )}
+
       {/* Stats — User */}
       {user?.role === 'user' && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className={`grid grid-cols-1 sm:grid-cols-2 ${hideWalletUi ? 'lg:grid-cols-3' : 'lg:grid-cols-4'} gap-4`}>
           <StatCard label="Total Appointments" value={stats.totalAppointments ?? 0} Icon={CalendarDays} gradient="stat-indigo" sub="All time" />
           <StatCard label="Upcoming" value={stats.upcomingAppointments ?? 0} Icon={Clock} gradient="stat-violet" sub="Confirmed / Pending" />
           <StatCard label="Health Records" value={stats.healthRecords ?? 0} Icon={HeartPulse} gradient="stat-cyan" sub="Medical documents" />
-          <StatCard label="Wallet Balance" value={`$${(stats.walletBalance ?? 0).toLocaleString()}`} Icon={Wallet} gradient="stat-emerald" sub="Available funds" />
+          {!hideWalletUi && (
+            <StatCard label="Wallet Balance" value={`$${(stats.walletBalance ?? 0).toLocaleString()}`} Icon={Wallet} gradient="stat-emerald" sub="Available funds" />
+          )}
         </div>
       )}
 
@@ -181,10 +194,12 @@ export default function DashboardPage() {
                 <HeartPulse size={24} className="text-muted-foreground group-hover:text-cyan-600" />
                 <span className="text-sm font-medium text-foreground group-hover:text-cyan-600 text-center">Add Health Record</span>
               </Link>
-              <Link href="/dashboard/wallet" className="flex flex-col items-center gap-2 p-4 rounded-xl border border-border hover:border-emerald-300 hover:bg-emerald-50 transition group">
-                <Wallet size={24} className="text-muted-foreground group-hover:text-emerald-600" />
-                <span className="text-sm font-medium text-foreground group-hover:text-emerald-600 text-center">Top Up Wallet</span>
-              </Link>
+              {!hideWalletUi && (
+                <Link href="/dashboard/wallet" className="flex flex-col items-center gap-2 p-4 rounded-xl border border-border hover:border-emerald-300 hover:bg-emerald-50 transition group">
+                  <Wallet size={24} className="text-muted-foreground group-hover:text-emerald-600" />
+                  <span className="text-sm font-medium text-foreground group-hover:text-emerald-600 text-center">Top Up Wallet</span>
+                </Link>
+              )}
               <Link href="/dashboard/doctors" className="flex flex-col items-center gap-2 p-4 rounded-xl border border-border hover:border-violet-300 hover:bg-violet-50 transition group">
                 <Stethoscope size={24} className="text-muted-foreground group-hover:text-violet-600" />
                 <span className="text-sm font-medium text-foreground group-hover:text-violet-600 text-center">Find Doctors</span>
