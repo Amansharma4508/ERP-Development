@@ -24,7 +24,12 @@ const initialDate = () => new Date().toISOString().split('T')[0];
 const initialTime = () => new Date().toLocaleTimeString('en-GB', { hour12: false });
 
 export default function WalletOnboardingForm({ onSubmitted }: { onSubmitted?: () => void }) {
-  const { setWalletOnboardingStatus } = useAuth();
+  const { setWalletOnboardingStatus, user } = useAuth(); // user को भी निकाल लिया
+  
+  // फोटो की एक्चुअल फाइल और प्रीव्यू ट्रैक करने के लिए स्टेट्स
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string>('');
+
   const [form, setForm] = useState({
     fullName: '',
     fatherName: '',
@@ -68,11 +73,32 @@ export default function WalletOnboardingForm({ onSubmitted }: { onSubmitted?: ()
     vendingId: '',
     consentGiven: false,
   });
+  
   const [formError, setFormError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   const updateField = (key: string, value: string | boolean) => {
     setForm((prev) => ({ ...prev, [key]: value }));
+  };
+
+  // फोटो इनपुट चेंज होने पर फ़ाइल और नाम दोनों स्टोर करने के लिए
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      setSelectedFile(file);
+      setPreviewUrl(URL.createObjectURL(file));
+      updateField('livePhotoName', file.name); // पुराना वैलिडेशन पास करने के लिए नाम अपडेट किया
+    }
+  };
+
+  // फ़ाइल को Base64 में बदलने का हेल्पर फंक्शन
+  const convertToBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const fileReader = new FileReader();
+      fileReader.readAsDataURL(file);
+      fileReader.onload = () => resolve(fileReader.result as string);
+      fileReader.onerror = (error) => reject(error);
+    });
   };
 
   const updateFamilyMember = (index: number, key: keyof FamilyMember, value: string) => {
@@ -146,7 +172,7 @@ export default function WalletOnboardingForm({ onSubmitted }: { onSubmitted?: ()
     return null;
   };
 
-  const submitForm = (event: React.FormEvent<HTMLFormElement>) => {
+  const submitForm = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setFormError(null);
 
@@ -157,11 +183,40 @@ export default function WalletOnboardingForm({ onSubmitted }: { onSubmitted?: ()
     }
 
     setSubmitting(true);
-    window.setTimeout(() => {
+
+    try {
+      let photoBase64 = '';
+      let photoName = '';
+
+      // अगर इमेज फाइल सेलेक्टेड है तो उसे बेस64 में बदलें
+      if (selectedFile) {
+        photoBase64 = await convertToBase64(selectedFile);
+        photoName = selectedFile.name;
+      }
+
+      // आपके कस्टम सबमिट API Route पर डेटा भेजना
+      const response = await fetch('/api/wallet/submit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: user?.id || 'anonymous',
+          formData: form,
+          photoBase64,
+          photoName
+        }),
+      });
+
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || 'Submission failed');
+
+      // सबमिट होने के बाद आपके ओरिजिनल प्रोजेक्ट के स्टेट्स अपडेट
       setWalletOnboardingStatus('in-progress');
       onSubmitted?.();
+    } catch (err: any) {
+      setFormError(err.message || 'Something went wrong while saving data.');
+    } finally {
       setSubmitting(false);
-    }, 250);
+    }
   };
 
   return (
@@ -379,8 +434,15 @@ export default function WalletOnboardingForm({ onSubmitted }: { onSubmitted?: ()
             <span className="text-sm font-medium text-foreground">Live Photo of Applicant *</span>
             <div className="mt-2 flex items-center gap-3 rounded-2xl border border-dashed border-border bg-muted/40 px-4 py-3">
               <Camera size={18} className="text-teal-600" />
-              <input type="file" accept="image/*" capture="environment" onChange={(event) => updateField('livePhotoName', event.target.files?.[0]?.name ?? '')} className="w-full text-sm file:mr-4 file:rounded-full file:border-0 file:bg-teal-600 file:px-3 file:py-1.5 file:text-sm file:font-semibold file:text-white" />
+              {/* handleFileChange को यहाँ कनेक्ट किया ताकि इमेज कैप्चर हो सके */}
+              <input type="file" accept="image/*" capture="environment" onChange={handleFileChange} className="w-full text-sm file:mr-4 file:rounded-full file:border-0 file:bg-teal-600 file:px-3 file:py-1.5 file:text-sm file:font-semibold file:text-white" />
             </div>
+            {/* लाइव फोटो प्रीव्यू स्क्रीन पर दिखने के लिए */}
+            {previewUrl && (
+              <div className="mt-3 relative w-28 h-28 border border-border rounded-2xl overflow-hidden bg-muted shadow-inner">
+                <img src={previewUrl} alt="Live Preview" className="w-full h-full object-cover" />
+              </div>
+            )}
           </label>
           <label className="block">
             <span className="text-sm font-medium text-foreground">Date</span>

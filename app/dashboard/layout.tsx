@@ -2,16 +2,18 @@
 
 import { useAuth } from '@/lib/auth-context';
 import { useRouter, usePathname } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import Link from 'next/link';
 import {
   LayoutDashboard, HeartPulse, CalendarDays, Wallet, Stethoscope,
   Package, ShoppingCart, BookOpen, Menu, LogOut, Cross,
   Truck, Users, Warehouse, MapPin, ReceiptText, LayoutGrid,
+  // नए आवश्यक आइकन्स ड्रापडाउन और आइकॉन के लिए
+  User, Settings, ChevronDown
 } from 'lucide-react';
 
 const NAV_ALL = [
-  { name: 'Dashboard',      href: '/dashboard',                      Icon: LayoutDashboard, roles: ['user','doctor','admin','logistics'] },
+  { name: 'Dashboard',      href: '/dashboard',                       Icon: LayoutDashboard, roles: ['user','doctor','admin','logistics'] },
   { name: 'Health Records', href: '/dashboard/health',                Icon: HeartPulse,      roles: ['user','admin'] },
   { name: 'Appointments',   href: '/dashboard/appointments',          Icon: CalendarDays,    roles: ['user','doctor','admin'] },
   { name: 'Wallet',         href: '/dashboard/wallet',                Icon: Wallet,          roles: ['user','admin'] },
@@ -34,6 +36,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  
+  // ड्रापडाउन के लिए नए स्टेट्स और रेफ (Refs)
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!isLoading && !user) router.push('/login');
@@ -44,6 +50,17 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   }, [user, isLoading, router]);
 
   useEffect(() => { setMobileOpen(false); }, [pathname]);
+
+  // ड्रापडाउन के बाहर क्लिक करने पर उसे बंद करने के लिए इफेक्ट
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setDropdownOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   if (isLoading) {
     return (
@@ -72,7 +89,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     logistics: 'bg-amber-100 text-amber-700',
   };
 
-  const initials = user.fullName.split(' ').map((w) => w[0]).join('').slice(0, 2).toUpperCase();
+  // Safe checks for user property
+  const userAsAny = user as any;
+  const userAvatar = userAsAny?.avatarUrl || userAsAny?.image;
+  const initials = user?.fullName ? user.fullName.split(' ').map((w: string) => w[0]).join('').slice(0, 2).toUpperCase() : 'U';
 
   const SidebarContent = () => (
     <div className="flex flex-col h-full">
@@ -131,14 +151,20 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       {/* User footer */}
       <div className={`p-3 border-t border-sidebar-border ${collapsed ? 'flex justify-center' : ''}`}>
         {collapsed ? (
-          <div className="w-9 h-9 rounded-xl bg-indigo-500 flex items-center justify-center text-white text-sm font-bold">
+          <div className="w-9 h-9 rounded-xl bg-indigo-500 flex items-center justify-center text-white text-sm font-bold shadow-sm"
+            style={{ background: 'linear-gradient(135deg,#818cf8,#a78bfa)' }}>
             {initials}
           </div>
         ) : (
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-indigo-500 flex items-center justify-center text-white text-sm font-bold flex-shrink-0">
-              {initials}
-            </div>
+            {userAvatar ? (
+              <img src={userAvatar} alt={user.fullName || 'User'} className="w-9 h-9 rounded-xl object-cover shrink-0 ring-2 ring-white/10" />
+            ) : (
+              <div className="w-9 h-9 rounded-xl flex items-center justify-center text-white text-sm font-bold shrink-0 shadow-sm"
+                style={{ background: 'linear-gradient(135deg,#818cf8,#a78bfa)' }}>
+                {initials}
+              </div>
+            )}
             <div className="flex-1 min-w-0">
               <p className="text-white text-sm font-medium truncate">{user.fullName}</p>
               <p className="text-indigo-300 text-xs truncate">{user.email}</p>
@@ -168,37 +194,87 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         <SidebarContent />
       </aside>
 
-      {/* Main */}
+      {/* Main Container */}
       <div className="flex-1 flex flex-col min-w-0">
-        {/* Topbar */}
-        <header className="h-16 bg-card border-b border-border flex items-center px-4 lg:px-8 gap-4 flex-shrink-0 sticky top-0 z-20">
-          <button onClick={() => setCollapsed(!collapsed)}
-            className="hidden lg:flex items-center justify-center w-9 h-9 rounded-xl hover:bg-muted transition text-muted-foreground">
-            <Menu size={18} />
-          </button>
-          <button onClick={() => setMobileOpen(true)}
-            className="lg:hidden flex items-center justify-center w-9 h-9 rounded-xl hover:bg-muted transition text-muted-foreground">
-            <Menu size={18} />
-          </button>
-
-          <div className="flex-1 min-w-0">
-            <h2 className="text-base font-semibold text-foreground truncate">
-              {navItems.find((n) => pathname === n.href || (n.href !== '/dashboard' && pathname.startsWith(n.href)))?.name ?? 'Dashboard'}
-            </h2>
+        
+        {/* ── TOPBAR — CLEANED & PERFECTLY ALIGNED ── */}
+        <header className="h-16 bg-card border-b border-border flex items-center justify-between px-4 lg:px-8 sticky top-0 z-20 w-full flex-shrink-0">
+          
+          {/* Left Side: Mobile Menu Button & Page Title */}
+          <div className="flex items-center gap-4 min-w-0 flex-1">
+            <button onClick={() => setMobileOpen(true)}
+              className="lg:hidden flex items-center justify-center w-9 h-9 rounded-xl hover:bg-muted transition text-muted-foreground shrink-0 overflow-hidden bg-muted">
+              <Menu size={18} />
+            </button>
+            <div className="min-w-0">
+              <h2 className="text-base font-semibold text-foreground truncate leading-none">
+                {navItems.find((n) => pathname === n.href || (n.href !== '/dashboard' && pathname.startsWith(n.href)))?.name ?? 'Dashboard'}
+              </h2>
+            </div>
           </div>
 
-          <div className="flex items-center gap-3">
+          {/* Right Side: Modern Profile Dropdown */}
+          <div className="flex items-center gap-4 shrink-0 ml-auto" ref={dropdownRef}>
             <span className={`hidden sm:inline-flex px-3 py-1 rounded-full text-xs font-semibold ${roleColors[user.role]}`}>
               {user.role.charAt(0).toUpperCase() + user.role.slice(1)}
             </span>
-            <div className="hidden sm:block text-right">
-              <p className="text-sm font-medium text-foreground leading-tight">{user.fullName}</p>
+
+            {/* PROFILE DROPDOWN COMPONENT */}
+            <div className="relative">
+              <button 
+                onClick={() => setDropdownOpen(!dropdownOpen)}
+                className="flex items-center gap-2.5 p-1.5 pr-3 rounded-xl hover:bg-muted transition text-left focus:outline-hidden"
+              >
+                {userAvatar ? (
+                  <img 
+                    src={userAvatar} 
+                    alt={user.fullName || 'User'} 
+                    className="w-8 h-8 rounded-xl object-cover shrink-0 ring-2 ring-indigo-500/20" 
+                  />
+                ) : (
+                  <div className="w-8 h-8 rounded-xl flex items-center justify-center text-white text-xs font-bold shrink-0 shadow-sm"
+                    style={{ background: 'linear-gradient(135deg,#818cf8,#a78bfa)' }}>
+                    {initials}
+                  </div>
+                )}
+                <div className="hidden sm:block min-w-0">
+                  <p className="text-xs font-semibold text-foreground leading-none truncate max-w-[110px]">{user.fullName}</p>
+                  <p className="text-[10px] text-muted-foreground mt-0.5 capitalize leading-none">{user.role?.replace('_', ' ')}</p>
+                </div>
+                {/* [IMAGE] को हटाकर Chevron Down आइकॉन लगाया गया है */}
+                <ChevronDown size={14} className={`text-muted-foreground transition-transform duration-200 hidden sm:block ${dropdownOpen ? 'rotate-180' : ''}`} />
+              </button>
+
+              {/* Dropdown Menu Overlay */}
+              {dropdownOpen && (
+                <div className="absolute right-0 mt-2 w-56 rounded-2xl border border-border bg-card p-1.5 shadow-xl animate-in fade-in slide-in-from-top-2 duration-150 z-50">
+                  {/* Header info */}
+                  <div className="px-3 py-2.5 border-b border-border mb-1">
+                    <p className="text-xs font-semibold text-foreground truncate">{user.fullName}</p>
+                    <p className="text-[11px] text-muted-foreground truncate mt-0.5">{user.email}</p>
+                  </div>
+
+                  {/* Edit Profile Action */}
+                  <Link 
+                    href="/dashboard/profile" 
+                    onClick={() => setDropdownOpen(false)}
+                    className="flex items-center gap-2 px-3 py-2 text-xs font-medium text-foreground hover:bg-muted rounded-xl transition"
+                  >
+                    <Settings size={14} className="text-muted-foreground" />
+                    Edit Profile
+                  </Link>
+
+                  {/* Sign Out Action */}
+                  <button 
+                    onClick={() => { setDropdownOpen(false); logout(); router.push('/login'); }}
+                    className="w-full flex items-center gap-2 px-3 py-2 text-xs font-medium text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-xl transition mt-0.5"
+                  >
+                    <LogOut size={14} />
+                    Sign out
+                  </button>
+                </div>
+              )}
             </div>
-            <button onClick={() => { logout(); router.push('/login'); }}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium text-red-600 hover:bg-red-50 transition">
-              <LogOut size={16} />
-              <span className="hidden sm:inline">Sign out</span>
-            </button>
           </div>
         </header>
 

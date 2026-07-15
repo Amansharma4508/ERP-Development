@@ -25,21 +25,24 @@ export default function LoginPage() {
   const [error, setError]       = useState('');
   const [loading, setLoading]   = useState(false);
 
-  const handleRedirect = (role: string) => {
+  const handleRedirect = (role: string, walletOnboardingStatus?: string) => {
     if (role === 'logistics') router.push('/dashboard/logistics');
     else if (role === 'wallet_user') router.push('/virtual-wallet');
-    else router.push(role === 'user' ? '/onboarding/wallet' : '/dashboard');
+    else if (role === 'user') {
+      // Only send them to the onboarding form if they haven't completed it yet
+      const isOnboarded = walletOnboardingStatus === 'in-progress' || walletOnboardingStatus === 'approved';
+      router.push(isOnboarded ? '/dashboard' : '/onboarding/wallet');
+    } else {
+      router.push('/dashboard');
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(''); setLoading(true);
     try {
-      await login(email, password);
-      // role is set in context after login; read from localStorage for immediate redirect
-      const stored = localStorage.getItem('erp_user');
-      const role = stored ? JSON.parse(stored).role : 'user';
-      handleRedirect(role);
+      const { user, walletOnboardingStatus } = await login(email, password);
+      handleRedirect(user.role, walletOnboardingStatus);
     } catch (err: any) {
       setError(err.message || 'Login failed');
     } finally { setLoading(false); }
@@ -48,10 +51,8 @@ export default function LoginPage() {
   const handleDemo = async (acc: typeof DEMO_ACCOUNTS[0]) => {
     setError(''); setLoading(true);
     try {
-      await login(acc.email, acc.password);
-      const stored = localStorage.getItem('erp_user');
-      const role = stored ? JSON.parse(stored).role : 'user';
-      handleRedirect(role);
+      const { user, walletOnboardingStatus } = await login(acc.email, acc.password);
+      handleRedirect(user.role, walletOnboardingStatus);
     } catch (err: any) {
       setError(err.message || 'Login failed');
     } finally { setLoading(false); }

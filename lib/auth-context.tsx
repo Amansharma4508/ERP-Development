@@ -11,14 +11,19 @@ export interface User {
 
 type WalletOnboardingStatus = 'pending' | 'in-progress' | 'approved' | 'none';
 
+interface AuthResult {
+  user: User;
+  walletOnboardingStatus: WalletOnboardingStatus;
+}
+
 interface AuthContextType {
   user: User | null;
   token: string | null;
   isLoading: boolean;
   walletOnboardingStatus: WalletOnboardingStatus;
   setWalletOnboardingStatus: (status: WalletOnboardingStatus) => void;
-  login: (email: string, password: string) => Promise<void>;
-  register: (email: string, password: string, fullName: string, role: string) => Promise<void>;
+  login: (email: string, password: string) => Promise<AuthResult>;
+  register: (email: string, password: string, fullName: string, role: string) => Promise<AuthResult>;
   logout: () => void;
 }
 
@@ -29,7 +34,7 @@ const getWalletStatusStorageKey = (userId?: string | null) => userId ? `erp_wall
 const readWalletOnboardingStatus = (userId?: string | null): WalletOnboardingStatus => {
   if (typeof window === 'undefined') return 'none';
   const stored = window.localStorage.getItem(getWalletStatusStorageKey(userId));
-  return (stored as WalletOnboardingStatus) ?? 'none';
+  return (stored as WalletOnboardingStatus) || 'none';
 };
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -46,44 +51,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const parsedUser = JSON.parse(storedUser) as User;
       setToken(storedToken);
       setUser(parsedUser);
-
-      const storedStatus = readWalletOnboardingStatus(parsedUser.id);
-      if (storedStatus) {
-        setWalletOnboardingStatusState(storedStatus);
-      } else if (parsedUser.role === 'user') {
-        const initialStatus: WalletOnboardingStatus = 'pending';
-        setWalletOnboardingStatusState(initialStatus);
-        localStorage.setItem(getWalletStatusStorageKey(parsedUser.id), initialStatus);
-      } else {
-        setWalletOnboardingStatusState('none');
-        localStorage.setItem(getWalletStatusStorageKey(parsedUser.id), 'none');
-      }
+      // On refresh, just trust the last known status (it was synced with the
+      // server on the most recent login/register/submit).
+      setWalletOnboardingStatusState(readWalletOnboardingStatus(parsedUser.id));
     }
 
     setIsLoading(false);
   }, []);
 
-  useEffect(() => {
-    if (!user) {
-      setWalletOnboardingStatusState('none');
-      return;
-    }
-
-    const storedStatus = readWalletOnboardingStatus(user.id);
-    if (storedStatus) {
-      setWalletOnboardingStatusState(storedStatus);
-      return;
-    }
-
-    if (user.role === 'user') {
-      const initialStatus: WalletOnboardingStatus = 'pending';
-      setWalletOnboardingStatusState(initialStatus);
-      localStorage.setItem(getWalletStatusStorageKey(user.id), initialStatus);
-    } else {
-      setWalletOnboardingStatusState('none');
-      localStorage.setItem(getWalletStatusStorageKey(user.id), 'none');
-    }
-  }, [user]);
+  const persistWalletOnboardingStatus = (userId: string, status: WalletOnboardingStatus) => {
+    setWalletOnboardingStatusState(status);
+    localStorage.setItem(getWalletStatusStorageKey(userId), status);
+  };
 
   const setWalletOnboardingStatus = (status: WalletOnboardingStatus) => {
     setWalletOnboardingStatusState(status);
@@ -92,7 +71,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const login = async (email: string, password: string) => {
+  const login = async (email: string, password: string): Promise<AuthResult> => {
     try {
       const response = await fetch('/api/auth/login', {
         method: 'POST',
@@ -106,25 +85,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         throw new Error(data.error || 'Login failed');
       }
 
+      const loggedInUser: User = data.data.user;
+      const status: WalletOnboardingStatus = data.data.walletOnboardingStatus || 'none';
+
       setToken(data.data.token);
-      setUser(data.data.user);
-      if (data.data.user?.role === 'user') {
-        const initialStatus: WalletOnboardingStatus = 'pending';
-        setWalletOnboardingStatusState(initialStatus);
-        localStorage.setItem(getWalletStatusStorageKey(data.data.user.id), initialStatus);
-      } else {
-        setWalletOnboardingStatusState('none');
-        localStorage.setItem(getWalletStatusStorageKey(data.data.user?.id), 'none');
-      }
+      setUser(loggedInUser);
+      persistWalletOnboardingStatus(loggedInUser.id, status);
+
       localStorage.setItem('erp_token', data.data.token);
-      localStorage.setItem('erp_user', JSON.stringify(data.data.user));
+      localStorage.setItem('erp_user', JSON.stringify(loggedInUser));
+
+      return { user: loggedInUser, walletOnboardingStatus: status };
     } catch (error) {
       console.error('[v0] Login error:', error);
       throw error;
     }
   };
 
-  const register = async (email: string, password: string, fullName: string, role: string) => {
+  const register = async (email: string, password: string, fullName: string, role: string): Promise<AuthResult> => {
     try {
       const response = await fetch('/api/auth/register', {
         method: 'POST',
@@ -138,18 +116,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         throw new Error(data.error || 'Registration failed');
       }
 
+      const registeredUser: User = data.data.user;
+      const status: WalletOnboardingStatus = data.data.walletOnboardingStatus || (role === 'user' ? 'pending' : 'none');
+
       setToken(data.data.token);
-      setUser(data.data.user);
-      if (data.data.user?.role === 'user') {
-        const initialStatus: WalletOnboardingStatus = 'pending';
-        setWalletOnboardingStatusState(initialStatus);
-        localStorage.setItem(getWalletStatusStorageKey(data.data.user.id), initialStatus);
-      } else {
-        setWalletOnboardingStatusState('none');
-        localStorage.setItem(getWalletStatusStorageKey(data.data.user?.id), 'none');
-      }
+      setUser(registeredUser);
+      persistWalletOnboardingStatus(registeredUser.id, status);
+
       localStorage.setItem('erp_token', data.data.token);
-      localStorage.setItem('erp_user', JSON.stringify(data.data.user));
+      localStorage.setItem('erp_user', JSON.stringify(registeredUser));
+
+      return { user: registeredUser, walletOnboardingStatus: status };
     } catch (error) {
       console.error('[v0] Registration error:', error);
       throw error;

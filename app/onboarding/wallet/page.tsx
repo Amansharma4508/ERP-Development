@@ -10,10 +10,18 @@ export default function WalletOnboardingPage() {
   const { user, walletOnboardingStatus, setWalletOnboardingStatus } = useAuth();
 
   useEffect(() => {
-    if (user?.role !== 'user') {
+    if (!user) return;
+
+    if (user.role !== 'user') {
+      router.replace('/dashboard');
+      return;
+    }
+
+    // If they've already submitted (or been approved), don't let them sit on this page again
+    if (walletOnboardingStatus === 'in-progress' || walletOnboardingStatus === 'approved') {
       router.replace('/dashboard');
     }
-  }, [router, user]);
+  }, [router, user, walletOnboardingStatus]);
 
   return (
     <div className="min-h-screen bg-background px-4 py-8 sm:px-6 lg:px-8">
