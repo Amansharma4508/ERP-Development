@@ -21,6 +21,28 @@ interface PaymentRecord {
   transactionRef: string; paidAt: string;
 }
 
+interface CardData {
+  full_name: string;
+  father_name: string;
+  mother_name: string;
+  dob: string;
+  gender: string;
+  blood_group: string;
+  house_number: string;
+  ward_number: string;
+  village_city: string;
+  gram_panchayat: string;
+  block: string;
+  district: string;
+  state: string;
+  pin_code: string;
+  head_of_family: string;
+  area_code: string;
+  live_photo_url: string | null;
+  card_number: string;
+  status: string;
+}
+
 type ActiveTab = 'transactions' | 'payments';
 
 const METHOD_LABEL: Record<string, string> = {
@@ -50,6 +72,10 @@ export default function WalletPage() {
   const [showApplicationForm, setShowApplicationForm] = useState(false);
   const [toast, setToast]               = useState<{msg:string;type:'success'|'error'}|null>(null);
 
+  // Health card ka real data
+  const [cardData, setCardData]         = useState<CardData | null>(null);
+  const [cardLoading, setCardLoading]   = useState(true);
+
   const fetchWallet = useCallback(async () => {
     if (!token) return;
     const res  = await fetch('/api/wallet', { headers:{ Authorization:`Bearer ${token}` } });
@@ -65,7 +91,21 @@ export default function WalletPage() {
     if (data.success) setPayments(data.data);
   }, [token]);
 
+  const fetchHealthCard = useCallback(async () => {
+    if (!token) return;
+    try {
+      const res  = await fetch('/api/health-card', { headers:{ Authorization:`Bearer ${token}` } });
+      const data = await res.json();
+      if (data.success) setCardData(data.data);
+    } catch (err) {
+      console.error('Health card fetch failed:', err);
+    } finally {
+      setCardLoading(false);
+    }
+  }, [token]);
+
   useEffect(() => { fetchWallet(); fetchPayments(); }, [fetchWallet, fetchPayments]);
+  useEffect(() => { fetchHealthCard(); }, [fetchHealthCard]);
 
   return (
     <div className="space-y-6">
@@ -84,7 +124,7 @@ export default function WalletPage() {
       {/* ── CONDITION: IF ONBOARDING IS IN PROGRESS OR PENDING ── */}
       {user?.role === 'user' && (walletOnboardingStatus === 'pending' || walletOnboardingStatus === 'in-progress') ? (
         <div className="space-y-6">
-          
+
           {/* 1. HEALTH CARD PREVIEW VIEW BLOCK */}
           <div className="rounded-3xl border border-border bg-card p-6 shadow-sm">
             <div className="rounded-2xl bg-emerald-50/60 border border-emerald-100 p-5 mb-6">
@@ -93,78 +133,92 @@ export default function WalletPage() {
               <p className="text-xs text-muted-foreground mt-0.5">A dedicated health-card style page for secure document review, patient details, and printing.</p>
             </div>
 
-            {/* Live Cards Design Grid */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 justify-items-center max-w-4xl mx-auto py-4">
-              
-              {/* FRONT CARD DESIGN (FULLY DUMMY) */}
-              <div className="w-full max-w-[380px] aspect-[1.586/1] rounded-2xl p-4 text-white flex flex-col justify-between shadow-md relative overflow-hidden select-none"
-                   style={{ background: 'linear-gradient(135deg, #063c31 0%, #0c2340 50%, #1d4ed8 100%)' }}>
-                <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -translate-y-6 translate-x-6 pointer-events-none" />
-                
-                {/* Header */}
-                <div className="flex items-center justify-between border-b border-white/10 pb-2">
-                  <span className="text-[11px] font-bold tracking-widest text-emerald-300">SVABHIMAN HEALTH ID CARD</span>
-                </div>
-
-                {/* Body Content */}
-                <div className="flex gap-4 items-center my-auto">
-                  {/* Dummy Profile Pic Frame */}
-                  <div className="w-20 h-24 rounded-lg bg-slate-900/40 border border-white/20 flex items-center justify-center shrink-0 overflow-hidden bg-muted">
-                    <User size={36} className="text-white/30" />
-                  </div>
-                  
-                  {/* Dummy Patient Info Fields */}
-                  <div className="space-y-1.5 flex-1 min-w-0">
-                    <div>
-                      <span className="text-[8px] uppercase tracking-wide text-white/50 block">Name</span>
-                      <p className="text-sm font-bold text-white truncate">John Doe</p>
-                    </div>
-                    <div>
-                      <span className="text-[8px] uppercase tracking-wide text-white/50 block">DOB</span>
-                      <p className="text-[11px] font-semibold text-white">1990-01-01</p>
-                    </div>
-                    <div>
-                      <span className="text-[8px] uppercase tracking-wide text-white/50 block">Card Number</span>
-                      <p className="text-xs font-bold tracking-wider text-emerald-300">0000000000000000</p>
-                    </div>
-                  </div>
-
-                  {/* Blood Group Flag */}
-                  <div className="text-right self-center shrink-0">
-                    <span className="text-[8px] uppercase tracking-wide text-white/50 block">Blood</span>
-                    <p className="text-xs font-bold text-red-400">O+</p>
-                  </div>
-                </div>
+            {cardLoading ? (
+              <div className="max-w-4xl mx-auto py-4">
+                <div className="skeleton h-48 rounded-2xl" />
               </div>
+            ) : (
+              /* Live Cards Design Grid */
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 justify-items-center max-w-4xl mx-auto py-4">
 
-              {/* BACK CARD DESIGN (FULLY DUMMY) */}
-              <div className="w-full max-w-[380px] aspect-[1.586/1] rounded-2xl bg-white border border-slate-200 text-slate-800 flex flex-col justify-between shadow-md overflow-hidden select-none">
-                {/* Magnetic Stripe representation */}
-                <div className="w-full h-10 bg-[#0f172a] mt-4 shrink-0" />
+                {/* FRONT CARD DESIGN */}
+                <div className="w-full max-w-[380px] aspect-[1.586/1] rounded-2xl p-4 text-white flex flex-col justify-between shadow-md relative overflow-hidden select-none"
+                     style={{ background: 'linear-gradient(135deg, #063c31 0%, #0c2340 50%, #1d4ed8 100%)' }}>
+                  <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -translate-y-6 translate-x-6 pointer-events-none" />
 
-                {/* Card Details Area */}
-                <div className="p-4 grid grid-cols-2 gap-x-2 gap-y-3 text-left my-auto">
-                  <div className="col-span-2">
-                    <span className="text-[8px] uppercase tracking-wider font-bold text-slate-400 block">Permanent Address</span>
-                    <p className="text-[10px] font-medium text-slate-700 leading-tight">123, Sample Street, Dummy City, State - 000000</p>
+                  {/* Header */}
+                  <div className="flex items-center justify-between border-b border-white/10 pb-2">
+                    <span className="text-[11px] font-bold tracking-widest text-emerald-300">SVABHIMAN HEALTH ID CARD</span>
                   </div>
-                  <div>
-                    <span className="text-[8px] uppercase tracking-wider font-bold text-slate-400 block">Emergency Contact</span>
-                    <p className="text-[11px] font-bold text-slate-700">9999999999</p>
-                  </div>
-                  <div>
-                    <span className="text-[8px] uppercase tracking-wider font-bold text-slate-400 block">Center Code</span>
-                    <p className="text-[11px] font-bold text-slate-700">XYZ000</p>
+
+                  {/* Body Content */}
+                  <div className="flex gap-4 items-center my-auto">
+                    {/* Profile Pic */}
+                    <div className="w-20 h-24 rounded-lg bg-slate-900/40 border border-white/20 flex items-center justify-center shrink-0 overflow-hidden bg-muted">
+                      {cardData?.live_photo_url ? (
+                        <img src={cardData.live_photo_url} alt="Applicant" className="w-full h-full object-cover" />
+                      ) : (
+                        <User size={36} className="text-white/30" />
+                      )}
+                    </div>
+
+                    {/* Patient Info Fields */}
+                    <div className="space-y-1.5 flex-1 min-w-0">
+                      <div>
+                        <span className="text-[8px] uppercase tracking-wide text-white/50 block">Name</span>
+                        <p className="text-sm font-bold text-white truncate">{cardData?.full_name || '—'}</p>
+                      </div>
+                      <div>
+                        <span className="text-[8px] uppercase tracking-wide text-white/50 block">DOB</span>
+                        <p className="text-[11px] font-semibold text-white">{cardData?.dob || '—'}</p>
+                      </div>
+                      <div>
+                        <span className="text-[8px] uppercase tracking-wide text-white/50 block">Card Number</span>
+                        <p className="text-xs font-bold tracking-wider text-emerald-300">{cardData?.card_number || '—'}</p>
+                      </div>
+                    </div>
+
+                    {/* Blood Group Flag */}
+                    <div className="text-right self-center shrink-0">
+                      <span className="text-[8px] uppercase tracking-wide text-white/50 block">Blood</span>
+                      <p className="text-xs font-bold text-red-400">{cardData?.blood_group || '—'}</p>
+                    </div>
                   </div>
                 </div>
 
-                {/* Footer instructions */}
-                <div className="bg-slate-50 border-t border-slate-100 py-1.5 text-center">
-                  <span className="text-[8px] text-slate-400 font-medium">If found, please return to the nearest center.</span>
+                {/* BACK CARD DESIGN */}
+                <div className="w-full max-w-[380px] aspect-[1.586/1] rounded-2xl bg-white border border-slate-200 text-slate-800 flex flex-col justify-between shadow-md overflow-hidden select-none">
+                  {/* Magnetic Stripe */}
+                  <div className="w-full h-10 bg-[#0f172a] mt-4 shrink-0" />
+
+                  {/* Card Details Area */}
+                  <div className="p-4 grid grid-cols-2 gap-x-2 gap-y-3 text-left my-auto">
+                    <div className="col-span-2">
+                      <span className="text-[8px] uppercase tracking-wider font-bold text-slate-400 block">Permanent Address</span>
+                      <p className="text-[10px] font-medium text-slate-700 leading-tight">
+                        {cardData
+                          ? `${cardData.house_number}, Ward ${cardData.ward_number}, ${cardData.village_city}, ${cardData.gram_panchayat}, ${cardData.block}, ${cardData.district}, ${cardData.state} - ${cardData.pin_code}`
+                          : '—'}
+                      </p>
+                    </div>
+                    <div>
+                      <span className="text-[8px] uppercase tracking-wider font-bold text-slate-400 block">Head of Family</span>
+                      <p className="text-[11px] font-bold text-slate-700">{cardData?.head_of_family || '—'}</p>
+                    </div>
+                    <div>
+                      <span className="text-[8px] uppercase tracking-wider font-bold text-slate-400 block">Center Code</span>
+                      <p className="text-[11px] font-bold text-slate-700">{cardData?.area_code || '—'}</p>
+                    </div>
+                  </div>
+
+                  {/* Footer instructions */}
+                  <div className="bg-slate-50 border-t border-slate-100 py-1.5 text-center">
+                    <span className="text-[8px] text-slate-400 font-medium">If found, please return to the nearest center.</span>
+                  </div>
                 </div>
+
               </div>
-
-            </div>
+            )}
           </div>
 
           {/* 2. PROGRESS TEXT BLOCK */}
@@ -188,9 +242,9 @@ export default function WalletPage() {
               <p className="text-sm text-muted-foreground font-medium">A secure and simple wallet for digital payments.</p>
             </div>
           </div>
-          
+
           <p className="text-sm text-muted-foreground font-medium pb-4">
-            SVABHIMAN, the flagship healthcare arm of CDC India’s Project SWABHIMAN, is an integrated, multi-tier healthcare ecosystem engineered to redefine medical access...
+            SVABHIMAN, the flagship healthcare arm of CDC India&apos;s Project SWABHIMAN, is an integrated, multi-tier healthcare ecosystem engineered to redefine medical access...
           </p>
 
           <button
