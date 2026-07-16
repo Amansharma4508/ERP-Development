@@ -16,7 +16,7 @@ export async function GET(request: Request) {
     }
 
     // 1. Database se profile fetch karein
-    const { data, error } = await supabaseAdmin
+    const { data: profile, error } = await supabaseAdmin
       .from('wallet_applications')
       .select('*')
       .eq('user_id', userId)
@@ -24,36 +24,39 @@ export async function GET(request: Request) {
 
     if (error) return NextResponse.json({ success: false, error: error.message }, { status: 400 });
 
-    // 2. Agar database mein email nahi hai, to Auth system se email lein
-    let userEmail = data?.email;
-    if (!userEmail) {
-      const { data: userData, error: userError } = await supabaseAdmin.auth.admin.getUserById(userId);
-      if (!userError && userData.user) {
-        userEmail = userData.user.email;
-      }
-    }
+    // 2. Auth user details fetch karein (Email ke liye)
+    const { data: authData, error: authError } = await supabaseAdmin.auth.admin.getUserById(userId);
+    const authEmail = authData?.user?.email || "";
 
-    // 3. Member ID logic (jaise pehle tha)
-    let memberId = data?.member_id;
+    // 3. Agar profile nahi hai, to ek default object banayein
+    let finalData = profile || { user_id: userId, full_name: "", phone_number: "", dob: "" };
+
+    // 4. Member ID Logic (Agar database mein nahi hai to generate karein)
+    let memberId = finalData.member_id;
     if (!memberId) {
       const randomNum = Math.floor(10000000 + Math.random() * 90000000);
       memberId = `SVA${randomNum}`;
-      await supabaseAdmin.from('wallet_applications').update({ member_id: memberId }).eq('user_id', userId);
+      
+      // Agar profile exist karti hai to update, nahi to error/handle (optional)
+      if (profile) {
+        await supabaseAdmin.from('wallet_applications').update({ member_id: memberId }).eq('user_id', userId);
+      }
+      // Note: Agar profile exist nahi karti to aap yahan .insert() bhi kar sakte hain
     }
 
-    // DOB Formatting
+    // 5. DOB Formatting
     let formattedDob = "";
-    if (data?.dob) {
-      const d = new Date(data.dob);
+    if (finalData.dob) {
+      const d = new Date(finalData.dob);
       if (!isNaN(d.getTime())) formattedDob = d.toISOString().split('T')[0];
     }
 
     return NextResponse.json({
       success: true,
       data: { 
-        ...data, 
+        ...finalData, 
         member_id: memberId,
-        email: userEmail, // Yahan se sahi email jayega
+        email: finalData.email || authEmail, // Database mein na ho to Auth email
         dob: formattedDob 
       }
     });

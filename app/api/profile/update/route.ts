@@ -9,30 +9,34 @@ const supabaseAdmin = createClient(
 
 export async function POST(request: Request) {
   try {
-    const body = await request.json();
+    // request body ko safely parse karein
+    const body = await request.json().catch(() => ({}));
     const { userId, fullName, email, phoneNumber, dob } = body;
 
     if (!userId) {
       return NextResponse.json({ success: false, error: 'User ID is required' }, { status: 400 });
     }
 
-    // 1. Auth Email Update
-    // Agar email same hai, toh isse skip karein taaki unnecessary error na aaye
+    // 1. Check current user in Auth
     const { data: userRecord, error: fetchError } = await supabaseAdmin.auth.admin.getUserById(userId);
     
-    if (userRecord?.user?.email !== email) {
+    if (fetchError || !userRecord?.user) {
+      return NextResponse.json({ success: false, error: 'User not found in Auth' }, { status: 404 });
+    }
+
+    // 2. Auth Email Update (Only if changed)
+    if (userRecord.user.email !== email) {
       const { error: authError } = await supabaseAdmin.auth.admin.updateUserById(
         userId,
         { email: email }
       );
 
       if (authError) {
-        // Yahan se JSON error return hoga, HTML page nahi
         return NextResponse.json({ success: false, error: authError.message }, { status: 400 });
       }
     }
 
-    // 2. Database Update
+    // 3. Database Update
     const { error: dbError } = await supabaseAdmin
       .from('wallet_applications')
       .update({
@@ -53,11 +57,11 @@ export async function POST(request: Request) {
     });
 
   } catch (error: any) {
-    // Catch block mein har haal mein JSON return karein taaki 'Unexpected Token' error na aaye
     console.error("API Error:", error);
-    return NextResponse.json(
-      { success: false, error: error.message || 'Something went wrong' }, 
-      { status: 500 }
+    // Yahan hum ensure kar rahe hain ki output hamesha JSON ho
+    return new NextResponse(
+      JSON.stringify({ success: false, error: error.message || 'Internal Server Error' }),
+      { status: 500, headers: { 'Content-Type': 'application/json' } }
     );
   }
 }
