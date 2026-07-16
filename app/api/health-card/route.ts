@@ -10,6 +10,30 @@ const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
   },
 });
 
+// Storage bucket jisme live photos upload hote hain (Image 1 se confirm: "live-photos", PUBLIC)
+const LIVE_PHOTO_BUCKET = 'live-photos';
+
+/**
+ * DB mein live_photo_url kabhi full public URL (http...) hota hai,
+ * kabhi sirf filename/path (jaise "WhatsApp Image 2026-07-07 at 11.54.4....jpeg").
+ * Ye function dono cases handle karke hamesha ek valid loadable public URL return karta hai.
+ */
+function resolveLivePhotoUrl(rawValue: string | null): string | null {
+  if (!rawValue) return null;
+
+  // Already full URL hai to as-is return karo
+  if (rawValue.startsWith('http://') || rawValue.startsWith('https://')) {
+    return rawValue;
+  }
+
+  // Warna isse storage bucket ka path/filename maan kar public URL banao
+  const { data } = supabaseAdmin.storage
+    .from(LIVE_PHOTO_BUCKET)
+    .getPublicUrl(rawValue);
+
+  return data?.publicUrl ?? null;
+}
+
 export async function GET(request: NextRequest) {
   try {
     const authHeader = request.headers.get('authorization');
@@ -77,7 +101,13 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    return NextResponse.json({ success: true, data }, { status: 200 });
+    // live_photo_url ko normalize karke bhejo taaki frontend <img> hamesha valid URL pe point kare
+    const responseData = {
+      ...data,
+      live_photo_url: resolveLivePhotoUrl(data.live_photo_url),
+    };
+
+    return NextResponse.json({ success: true, data: responseData }, { status: 200 });
   } catch (error: any) {
     return NextResponse.json(
       { success: false, error: error.message || 'Internal Server Error' },

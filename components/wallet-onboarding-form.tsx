@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, ChangeEvent } from 'react';
 import { Camera, CheckCircle, Plus, Sparkles } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 
@@ -25,7 +25,7 @@ const initialTime = () => new Date().toLocaleTimeString('en-GB', { hour12: false
 
 export default function WalletOnboardingForm({ onSubmitted }: { onSubmitted?: () => void }) {
   const { setWalletOnboardingStatus, user } = useAuth(); // user को भी निकाल लिया
-  
+
   // फोटो की एक्चुअल फाइल और प्रीव्यू ट्रैक करने के लिए स्टेट्स
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string>('');
@@ -73,7 +73,7 @@ export default function WalletOnboardingForm({ onSubmitted }: { onSubmitted?: ()
     vendingId: '',
     consentGiven: false,
   });
-  
+
   const [formError, setFormError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -82,7 +82,7 @@ export default function WalletOnboardingForm({ onSubmitted }: { onSubmitted?: ()
   };
 
   // फोटो इनपुट चेंज होने पर फ़ाइल और नाम दोनों स्टोर करने के लिए
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
       setSelectedFile(file);
