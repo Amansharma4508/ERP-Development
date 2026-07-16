@@ -43,17 +43,21 @@ const fetchUserData = async () => {
     fetchUserData();
   }, [authLoading, user]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) return;
 
     setLoading(true);
-    setMessage({ type: '', text: '' });
     try {
-      await axios.post('/api/profile/update', { userId: user.id, ...formData });
-      setMessage({ type: 'success', text: 'Profile updated successfully!' });
-    } catch (err) {
-      setMessage({ type: 'error', text: 'Update failed. Please try again.' });
+      const response = await axios.post('/api/profile/update', { userId: user.id, ...formData });
+      
+      // Success message show karein
+      setMessage({ 
+        type: 'success', 
+        text: 'Profile updated! ' 
+      });
+    } catch (err: any) {
+      setMessage({ type: 'error', text: err.response?.data?.error || 'Update failed.' });
     } finally {
       setLoading(false);
     }
