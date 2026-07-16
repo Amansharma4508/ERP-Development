@@ -12,25 +12,32 @@ export async function POST(request: Request) {
     const body = await request.json();
     const { userId, fullName, email, phoneNumber, dob } = body;
 
-    // 1. Auth email update - Ye setting on hone ki wajah se ab confirmation trigger karega
-    const { error: authError } = await supabaseAdmin.auth.admin.updateUserById(
-      userId,
-      { email: email } 
-    );
-
-    if (authError) {
-      return NextResponse.json({ success: false, error: authError.message }, { status: 400 });
+    if (!userId) {
+      return NextResponse.json({ success: false, error: 'User ID is required' }, { status: 400 });
     }
 
-    // 2. Database Update - Yahan dhyaan dein:
-    // Hum email database mein tabhi update karenge jab wo confirm ho jaye, 
-    // lekin filhal ke liye agar aap chahte hain ki UI par naya email dikhe, 
-    // to ise update rehne dein.
+    // 1. Auth Email Update
+    // Agar email same hai, toh isse skip karein taaki unnecessary error na aaye
+    const { data: userRecord, error: fetchError } = await supabaseAdmin.auth.admin.getUserById(userId);
+    
+    if (userRecord?.user?.email !== email) {
+      const { error: authError } = await supabaseAdmin.auth.admin.updateUserById(
+        userId,
+        { email: email }
+      );
+
+      if (authError) {
+        // Yahan se JSON error return hoga, HTML page nahi
+        return NextResponse.json({ success: false, error: authError.message }, { status: 400 });
+      }
+    }
+
+    // 2. Database Update
     const { error: dbError } = await supabaseAdmin
       .from('wallet_applications')
       .update({
         full_name: fullName,
-        email: email, // Naya email yahan set ho jayega
+        email: email,
         phone_number: phoneNumber,
         dob: dob,
       })
@@ -42,9 +49,15 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ 
       success: true, 
-      message: 'Email update request sent! Please verify the new email address.' 
+      message: 'Profile updated successfully!' 
     });
+
   } catch (error: any) {
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    // Catch block mein har haal mein JSON return karein taaki 'Unexpected Token' error na aaye
+    console.error("API Error:", error);
+    return NextResponse.json(
+      { success: false, error: error.message || 'Something went wrong' }, 
+      { status: 500 }
+    );
   }
 }
