@@ -17,6 +17,7 @@ const NAV_ALL = [
   { name: 'Health Records', href: '/dashboard/health',                Icon: HeartPulse,      roles: ['user','admin'] },
   { name: 'Appointments',   href: '/dashboard/appointments',          Icon: CalendarDays,    roles: ['user','doctor','admin'] },
   { name: 'Wallet',         href: '/dashboard/wallet',                Icon: Wallet,          roles: ['user','admin'] },
+  { name: 'Users',          href: '/dashboard/users',                 Icon: User,            roles: ['admin'] },   // 👈 NAYA
   { name: 'Doctors',        href: '/dashboard/doctors',               Icon: Stethoscope,     roles: ['user','admin'] },
   { name: 'Inventory',      href: '/dashboard/inventory',             Icon: Package,         roles: ['doctor','admin'] },
   { name: 'Orders',         href: '/dashboard/orders',                Icon: ShoppingCart,    roles: ['doctor','admin'] },
@@ -37,7 +38,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   
-  // ड्रापडाउन के लिए नए स्टेट्स और रेफ (Refs)
+  
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -51,7 +52,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   useEffect(() => { setMobileOpen(false); }, [pathname]);
 
-  // ड्रापडाउन के बाहर क्लिक करने पर उसे बंद करने के लिए इफेक्ट
+  
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
@@ -149,7 +150,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       </nav>
 
       {/* User footer */}
-      <div className={`p-3 border-t border-sidebar-border ${collapsed ? 'flex justify-center' : ''}`}>
+      {/* <div className={`p-3 border-t border-sidebar-border ${collapsed ? 'flex justify-center' : ''}`}>
         {collapsed ? (
           <div className="w-9 h-9 rounded-xl bg-indigo-500 flex items-center justify-center text-white text-sm font-bold shadow-sm"
             style={{ background: 'linear-gradient(135deg,#818cf8,#a78bfa)' }}>
@@ -171,7 +172,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             </div>
           </div>
         )}
-      </div>
+      </div> */}
     </div>
   );
 

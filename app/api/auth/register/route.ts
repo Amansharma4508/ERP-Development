@@ -46,6 +46,7 @@ export async function POST(request: NextRequest) {
       .insert({
         id: authData.user.id,
         full_name: fullName,
+        email: email,
         account_type: role,
       })
       .select();

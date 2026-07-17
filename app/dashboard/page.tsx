@@ -101,7 +101,7 @@ export default function DashboardPage() {
           <StatCard label="Total Appointments" value={stats.totalAppointments ?? 0} Icon={CalendarDays} gradient="stat-indigo" sub="All time" />
           <StatCard label="Upcoming" value={stats.upcomingAppointments ?? 0} Icon={Clock} gradient="stat-violet" sub="Confirmed / Pending" />
           <StatCard label="Health Records" value={stats.healthRecords ?? 0} Icon={HeartPulse} gradient="stat-cyan" sub="Medical documents" />
-          <StatCard label="Wallet Balance" value={`$${(stats.walletBalance ?? 35000).toLocaleString()}`} Icon={Wallet} gradient="stat-emerald" sub="Available funds" />
+          <StatCard label="Wallet Balance" value={`₹${(stats.walletBalance ?? 35000).toLocaleString()}`} Icon={Wallet} gradient="stat-emerald" sub="Available funds" />
         </div>
       )}
 

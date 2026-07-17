@@ -124,6 +124,16 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: false, error: `Database entry failed: ${error.message}` }, { status: 400 });
     }
 
+   if (finalPhotoUrl) {
+      const { error: profileError } = await supabaseAdmin
+        .from('profiles')
+        .update({ photo_url: finalPhotoUrl }) // Yahan pura URL save ho jayega
+        .eq('id', userId);
+
+      if (profileError) {
+        console.error('Profile update failed:', profileError.message);
+      }
+    }
     return NextResponse.json({ success: true, data }, { status: 200 });
 
   } catch (error: any) {
