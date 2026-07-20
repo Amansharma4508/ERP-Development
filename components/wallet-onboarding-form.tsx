@@ -23,6 +23,42 @@ const createEmptyFamilyMember = (): FamilyMember => ({
 const initialDate = () => new Date().toISOString().split('T')[0];
 const initialTime = () => new Date().toLocaleTimeString('en-GB', { hour12: false });
 
+// ---- नई हेल्पर: फोटो को अपलोड से पहले compress करने के लिए ----
+// Canvas का इस्तेमाल करके width घटाते हैं और JPEG quality कम करते हैं
+// ताकि 413 "Request Entity Too Large" कभी न आए
+const compressImage = (file: File, maxWidth = 1000, quality = 0.7): Promise<Blob> => {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const objectUrl = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(objectUrl);
+      const scale = Math.min(1, maxWidth / img.width);
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.round(img.width * scale);
+      canvas.height = Math.round(img.height * scale);
+      const ctx = canvas.getContext('2d');
+      if (!ctx) {
+        reject(new Error('Canvas context not available'));
+        return;
+      }
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      canvas.toBlob(
+        (blob) => {
+          if (blob) resolve(blob);
+          else reject(new Error('Image compression failed'));
+        },
+        'image/jpeg',
+        quality,
+      );
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(objectUrl);
+      reject(new Error('Could not load image for compression'));
+    };
+    img.src = objectUrl;
+  });
+};
+
 export default function WalletOnboardingForm({ onSubmitted }: { onSubmitted?: () => void }) {
   const { setWalletOnboardingStatus, user } = useAuth(); // user को भी निकाल लिया
 
@@ -91,16 +127,6 @@ export default function WalletOnboardingForm({ onSubmitted }: { onSubmitted?: ()
     }
   };
 
-  // फ़ाइल को Base64 में बदलने का हेल्पर फंक्शन
-  const convertToBase64 = (file: File): Promise<string> => {
-    return new Promise((resolve, reject) => {
-      const fileReader = new FileReader();
-      fileReader.readAsDataURL(file);
-      fileReader.onload = () => resolve(fileReader.result as string);
-      fileReader.onerror = (error) => reject(error);
-    });
-  };
-
   const updateFamilyMember = (index: number, key: keyof FamilyMember, value: string) => {
     setForm((prev) => ({
       ...prev,
@@ -115,6 +141,12 @@ export default function WalletOnboardingForm({ onSubmitted }: { onSubmitted?: ()
   };
 
   const validateForm = () => {
+    // यूज़र सेशन अभी लोड नहीं हुआ — सबमिट होने से पहले रोकना ज़रूरी है
+    // ताकि backend को कभी "anonymous" userId न मिले (duplicate key error की मुख्य वजह यही थी)
+    if (!user?.id) {
+      return 'User session is still loading. Please wait a moment and try again.';
+    }
+
     const requiredFields: Array<[string, string]> = [
       ['Name', form.fullName],
       ['Father’s Name', form.fatherName],
@@ -185,29 +217,44 @@ export default function WalletOnboardingForm({ onSubmitted }: { onSubmitted?: ()
     setSubmitting(true);
 
     try {
-      let photoBase64 = '';
-      let photoName = '';
+      // ---- FormData (multipart) से भेज रहे हैं, base64 JSON नहीं ----
+      // इससे payload साइज़ काफी कम होता है और 413 error नहीं आता
+      const payload = new FormData();
+      payload.append('userId', user!.id);
+      payload.append('formData', JSON.stringify(form));
 
-      // अगर इमेज फाइल सेलेक्टेड है तो उसे बेस64 में बदलें
       if (selectedFile) {
-        photoBase64 = await convertToBase64(selectedFile);
-        photoName = selectedFile.name;
+        try {
+          const compressedBlob = await compressImage(selectedFile);
+          payload.append('photo', compressedBlob, selectedFile.name.replace(/\.[^/.]+$/, '') + '.jpg');
+        } catch {
+          // अगर compression fail हो जाए तो original file भेज दो, ताकि submission ना रुके
+          payload.append('photo', selectedFile, selectedFile.name);
+        }
       }
 
-      // आपके कस्टम सबमिट API Route पर डेटा भेजना
       const response = await fetch('/api/wallet/submit', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          userId: user?.id || 'anonymous',
-          formData: form,
-          photoBase64,
-          photoName
-        }),
+        body: payload,
       });
 
-      const result = await response.json();
-      if (!response.ok) throw new Error(result.error || 'Submission failed');
+      // response हमेशा JSON नहीं होता (जैसे platform-level 413/504 error) —
+      // इसलिए content-type चेक करके safely parse करते हैं
+      const contentType = response.headers.get('content-type') || '';
+      let result: any = null;
+
+      if (contentType.includes('application/json')) {
+        result = await response.json();
+      } else {
+        const text = await response.text();
+        throw new Error(
+          text.trim().startsWith('<')
+            ? 'Server error occurred. Please try again with a smaller photo or check your connection.'
+            : text.slice(0, 200) || 'Unexpected server response.',
+        );
+      }
+
+      if (!response.ok) throw new Error(result?.error || 'Submission failed');
 
       // सबमिट होने के बाद आपके ओरिजिनल प्रोजेक्ट के स्टेट्स अपडेट
       setWalletOnboardingStatus('in-progress');
