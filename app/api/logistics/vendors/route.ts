@@ -18,10 +18,12 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const status   = searchParams.get('status');
   const category = searchParams.get('category');
+  const vendorType = searchParams.get('vendorType');
 
   let result = [...vendors];
   if (status)   result = result.filter(v => v.supplyStatus === status);
   if (category) result = result.filter(v => v.category === category);
+  if (vendorType) result = result.filter(v => v.vendorType === vendorType);
 
   return toJson(successResponse(result));
 }
@@ -32,22 +34,64 @@ export async function POST(request: NextRequest) {
   if (!guard(token)) return toJson(errorResponse('Unauthorized', 401));
 
   const body = await request.json();
-  const { name, categoryName, category, contactPerson, email,
-          phone, address, area, gstNo, licenseNo, paymentTerms, creditDays } = body;
+  const {
+    name,
+    vendorType,
+    category,
+    categoryName,
+    contactPerson,
+    email,
+    phone,
+    address,
+    area,
+    gstNo,
+    licenseNo,
+    paymentTerms,
+    creditDays,
+    // Hospital specific
+    hospitalName,
+    licenseType,
+    stateRegistration,
+    // Wallet/Card specific
+    cardTypes,
+    printingCapacity,
+    turnaroundDays,
+  } = body;
 
-  if (!name || !categoryName || !contactPerson || !email || !phone) {
+  if (!name || !vendorType || !contactPerson || !email || !phone) {
     return toJson(errorResponse('Missing required fields', 400));
+  }
+
+  if (!['hospital', 'wallet-card'].includes(vendorType)) {
+    return toJson(errorResponse('Invalid vendor type', 400));
   }
 
   const newVendor = {
     id:            `v${Date.now()}`,
     vendorId:      `VND-${String(vendors.length + 1).padStart(3, '0')}`,
-    name, category: category ?? '1', categoryName,
-    contactPerson, email, phone,
-    address: address ?? '', area: area ?? '',
-    gstNo: gstNo ?? '', licenseNo: licenseNo ?? '',
-    paymentTerms: paymentTerms ?? 'Net 30',
-    creditDays:   Number(creditDays ?? 30),
+    name,
+    vendorType,
+    category:      category ?? '1',
+    categoryName,
+    contactPerson,
+    email,
+    phone,
+    address:       address ?? '',
+    area:          area ?? '',
+    gstNo:         gstNo ?? '',
+    licenseNo:     licenseNo ?? '',
+    paymentTerms:  paymentTerms ?? 'Net 30',
+    creditDays:    Number(creditDays ?? 30),
+    ...(vendorType === 'hospital' && {
+      hospitalName:      hospitalName ?? '',
+      licenseType:       licenseType ?? '',
+      stateRegistration: stateRegistration ?? '',
+    }),
+    ...(vendorType === 'wallet-card' && {
+      cardTypes:        cardTypes ?? [],
+      printingCapacity: printingCapacity ?? '',
+      turnaroundDays:   Number(turnaroundDays ?? 5),
+    }),
     rating:       0,
     supplyStatus: 'active' as const,
     totalOrders:  0,

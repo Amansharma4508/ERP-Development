@@ -7,6 +7,7 @@ export interface User {
   email: string;
   fullName: string;
   role: 'user' | 'doctor' | 'admin' | 'logistics' | 'wallet_user';
+  isApproved: boolean; // false for doctor/logistics until admin approves
 }
 
 type WalletOnboardingStatus = 'pending' | 'in-progress' | 'approved' | 'none';
@@ -43,22 +44,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const [walletOnboardingStatus, setWalletOnboardingStatusState] = useState<WalletOnboardingStatus>('none');
 
-  useEffect(() => {
-    const storedToken = localStorage.getItem('erp_token');
-    const storedUser = localStorage.getItem('erp_user');
-
-    if (storedToken && storedUser) {
-      const parsedUser = JSON.parse(storedUser) as User;
-      setToken(storedToken);
-      setUser(parsedUser);
-      // On refresh, just trust the last known status (it was synced with the
-      // server on the most recent login/register/submit).
-      setWalletOnboardingStatusState(readWalletOnboardingStatus(parsedUser.id));
-    }
-
-    setIsLoading(false);
-  }, []);
-
+  // Helper functions ko useEffect se pehle define kiya taaki scope ka error na aaye
   const persistWalletOnboardingStatus = (userId: string, status: WalletOnboardingStatus) => {
     setWalletOnboardingStatusState(status);
     localStorage.setItem(getWalletStatusStorageKey(userId), status);
@@ -70,6 +56,34 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       localStorage.setItem(getWalletStatusStorageKey(user.id), status);
     }
   };
+
+  useEffect(() => {
+    const storedToken = localStorage.getItem('erp_token');
+    const storedUser = localStorage.getItem('erp_user');
+
+    if (storedToken && storedUser) {
+      const parsedUser = JSON.parse(storedUser) as User;
+      setToken(storedToken);
+      setUser(parsedUser);
+
+      // Local cache se turant status set karo
+      setWalletOnboardingStatusState(readWalletOnboardingStatus(parsedUser.id));
+
+      // ✅ Server se authoritative status fetch karo
+      fetch('/api/wallet-onboarding/status', {
+        headers: { Authorization: `Bearer ${storedToken}` },
+      })
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.success) {
+            persistWalletOnboardingStatus(parsedUser.id, data.data.status);
+          }
+        })
+        .catch((err) => console.error('Failed to sync wallet status:', err));
+    }
+
+    setIsLoading(false);
+  }, []);
 
   const login = async (email: string, password: string): Promise<AuthResult> => {
     try {
@@ -85,7 +99,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         throw new Error(data.error || 'Login failed');
       }
 
-      const loggedInUser: User = data.data.user;
+      const loggedInUser: User = {
+        ...data.data.user,
+        isApproved: data.data.user.isApproved ?? true,
+      };
       const status: WalletOnboardingStatus = data.data.walletOnboardingStatus || 'none';
 
       setToken(data.data.token);
@@ -116,7 +133,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         throw new Error(data.error || 'Registration failed');
       }
 
-      const registeredUser: User = data.data.user;
+      const registeredUser: User = {
+        ...data.data.user,
+        isApproved: data.data.user.isApproved ?? true,
+      };
       const status: WalletOnboardingStatus = data.data.walletOnboardingStatus || (role === 'user' ? 'pending' : 'none');
 
       setToken(data.data.token);

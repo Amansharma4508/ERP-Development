@@ -83,11 +83,14 @@ export default function DashboardPage() {
     return 'Good evening';
   };
 
+  // Check if user is Admin or Support team member
+  const isAdminOrSupport = user?.role === 'admin' || user?.role === 'support';
+
   return (
     <div className="space-y-8">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-foreground">{greeting()}, {user?.fullName.split(' ')[0]} 👋</h1>
+          <h1 className="text-3xl font-bold text-foreground">{greeting()}, {user?.fullName?.split(' ')[0] || 'Team'} 👋</h1>
           <p className="text-muted-foreground mt-1">Here&apos;s what&apos;s happening today</p>
         </div>
         <div className="text-sm text-muted-foreground hidden sm:block">
@@ -115,8 +118,8 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* Stats — Admin */}
-      {user?.role === 'admin' && (
+      {/* Stats — Admin & Support */}
+      {isAdminOrSupport && (
         <>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <StatCard label="Total Appointments" value={stats.totalAppointments ?? 0} Icon={CalendarDays} gradient="stat-indigo" sub="All time" />
@@ -203,7 +206,7 @@ export default function DashboardPage() {
                 <span className="text-sm font-medium text-foreground group-hover:text-amber-600 text-center">Check Inventory</span>
               </Link>
             </>)}
-            {user?.role === 'admin' && (<>
+            {isAdminOrSupport && (<>
               <Link href="/dashboard/appointments" className="flex flex-col items-center gap-2 p-4 rounded-xl border border-border hover:border-indigo-300 hover:bg-indigo-50 transition group">
                 <CalendarDays size={24} className="text-muted-foreground group-hover:text-indigo-600" />
                 <span className="text-sm font-medium text-foreground group-hover:text-indigo-600 text-center">Appointments</span>

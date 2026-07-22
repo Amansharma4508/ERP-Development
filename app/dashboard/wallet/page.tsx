@@ -91,18 +91,39 @@ export default function WalletPage() {
     if (data.success) setPayments(data.data);
   }, [token]);
 
-  const fetchHealthCard = useCallback(async () => {
-    if (!token) return;
-    try {
-      const res  = await fetch('/api/health-card', { headers:{ Authorization:`Bearer ${token}` } });
-      const data = await res.json();
-      if (data.success) setCardData(data.data);
-    } catch (err) {
-      console.error('Health card fetch failed:', err);
-    } finally {
-      setCardLoading(false);
+function mapDbStatusToOnboardingStatus(dbStatus: string): WalletOnboardingStatus {
+  switch (dbStatus) {
+    case 'submitted':
+      return 'in-progress';   // form submit ho chuka, review pending
+    case 'approved':
+      return 'approved';
+    case 'rejected':
+      return 'none';          // ya chaho to alag handle karo
+    default:
+      return 'none';
+  }
+}
+
+const fetchHealthCard = useCallback(async () => {
+  if (!token) return;
+  try {
+    const res  = await fetch('/api/health-card', { headers:{ Authorization:`Bearer ${token}` } });
+    const data = await res.json();
+    if (data.success) {
+      setCardData(data.data);
+      if (data.data.status) {
+        setWalletOnboardingStatus(mapDbStatusToOnboardingStatus(data.data.status));
+      }
+    } else {
+      setCardData(null);
+      setWalletOnboardingStatus('none'); // application hi nahi mili
     }
-  }, [token]);
+  } catch (err) {
+    console.error('Health card fetch failed:', err);
+  } finally {
+    setCardLoading(false);
+  }
+}, [token, setWalletOnboardingStatus]);
 
   useEffect(() => { fetchWallet(); fetchPayments(); }, [fetchWallet, fetchPayments]);
   useEffect(() => { fetchHealthCard(); }, [fetchHealthCard]);
@@ -139,7 +160,7 @@ export default function WalletPage() {
               </div>
             ) : (
               /* Live Cards Design Grid */
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 justify-items-center max-w-4xl mx-auto py-4">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 justify-items-left mx-auto py-4">
 
                 {/* FRONT CARD DESIGN */}
                 <div className="w-full max-w-[380px] aspect-[1.586/1] rounded-2xl p-4 text-white flex flex-col justify-between shadow-md relative overflow-hidden select-none"

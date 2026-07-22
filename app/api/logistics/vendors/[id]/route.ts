@@ -20,8 +20,25 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   if (!vendor) return toJson(errorResponse('Vendor not found', 404));
 
   const body = await request.json();
-  Object.assign(vendor, body);
-  return toJson(successResponse(vendor));
+  
+  // Handle type-specific validations
+  if (body.vendorType && !['hospital', 'wallet-card'].includes(body.vendorType)) {
+    return toJson(errorResponse('Invalid vendor type', 400));
+  }
+
+  // Merge with proper type handling
+  const updatedVendor = {
+    ...vendor,
+    ...body,
+    creditDays: body.creditDays !== undefined ? Number(body.creditDays) : vendor.creditDays,
+    turnaroundDays: body.turnaroundDays !== undefined ? Number(body.turnaroundDays) : vendor.turnaroundDays,
+  };
+
+  // Update in store
+  const idx = vendors.findIndex(v => v.id === id);
+  vendors[idx] = updatedVendor;
+
+  return toJson(successResponse(updatedVendor));
 }
 
 // DELETE /api/logistics/vendors/[id]

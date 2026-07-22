@@ -7,28 +7,29 @@ import Link from 'next/link';
 import {
   LayoutDashboard, HeartPulse, CalendarDays, Wallet, Stethoscope,
   Package, ShoppingCart, BookOpen, Menu, LogOut, Cross,
-  Truck, Users, Warehouse, MapPin, ReceiptText, LayoutGrid,
-  // नए आवश्यक आइकन्स ड्रापडाउन और आइकॉन के लिए
+  Truck, Users, Warehouse, MapPin, ReceiptText, LayoutGrid,Building2, CreditCard,UserPlus,
   User, Settings, ChevronDown
 } from 'lucide-react';
 
 const NAV_ALL = [
-  { name: 'Dashboard',      href: '/dashboard',                       Icon: LayoutDashboard, roles: ['user','doctor','admin','logistics'] },
-  { name: 'Health Records', href: '/dashboard/health',                Icon: HeartPulse,      roles: ['user','admin'] },
-  { name: 'Appointments',   href: '/dashboard/appointments',          Icon: CalendarDays,    roles: ['user','doctor','admin'] },
-  { name: 'Wallet',         href: '/dashboard/wallet',                Icon: Wallet,          roles: ['user','admin'] },
-  { name: 'Users',          href: '/dashboard/users',                 Icon: User,            roles: ['admin'] },   // 👈 NAYA
-  { name: 'Doctors',        href: '/dashboard/doctors',               Icon: Stethoscope,     roles: ['user','admin'] },
-  { name: 'Inventory',      href: '/dashboard/inventory',             Icon: Package,         roles: ['doctor','admin'] },
-  { name: 'Orders',         href: '/dashboard/orders',                Icon: ShoppingCart,    roles: ['doctor','admin'] },
-  { name: 'Accounting',     href: '/dashboard/accounting',            Icon: BookOpen,        roles: ['admin'] },
-  { name: 'Wallet Control', href: '/dashboard/wallet-dashboard',      Icon: LayoutGrid,      roles: ['admin'] },
+  { name: 'Dashboard',        href: '/dashboard',                     Icon: LayoutDashboard, roles: ['user','doctor','admin','logistics','support'] },
+  { name: 'Health Records', href: '/dashboard/health',                Icon: HeartPulse,      roles: ['user','admin','support'] },
+  { name: 'Appointments',   href: '/dashboard/appointments',          Icon: CalendarDays,    roles: ['user','doctor','admin','support'] },
+  { name: 'Wallet',         href: '/dashboard/wallet',                Icon: Wallet,          roles: ['user','admin','support'] },
+  { name: 'Users',          href: '/dashboard/users',                 Icon: User,            roles: ['admin','support'] },
+  { name: 'Doctors',        href: '/dashboard/doctors',               Icon: Stethoscope,     roles: ['user','admin','support'] },
+  { name: 'Inventory',      href: '/dashboard/inventory',             Icon: Package,         roles: ['doctor','admin','support'] },
+  { name: 'Orders',         href: '/dashboard/orders',                Icon: ShoppingCart,    roles: ['doctor','admin','support'] },
+  { name: 'Accounting',     href: '/dashboard/accounting',            Icon: BookOpen,        roles: ['admin','support'] },
+  { name: 'Wallet Control', href: '/dashboard/wallet-dashboard',      Icon: LayoutGrid,      roles: ['admin','support'] },
   // ── Logistics Panel ──────────────────────────────────────────────────────
-  { name: 'Shipments',      href: '/dashboard/logistics/shipments',   Icon: Truck,           roles: ['logistics','admin'] },
-  { name: 'Vendors',        href: '/dashboard/logistics/vendors',     Icon: Users,           roles: ['logistics','admin'] },
-  { name: 'Warehouses',     href: '/dashboard/logistics/warehouses',  Icon: Warehouse,       roles: ['logistics','admin'] },
-  { name: 'Team',           href: '/dashboard/logistics/team',        Icon: MapPin,          roles: ['logistics','admin'] },
-  { name: 'Funds Ledger',   href: '/dashboard/logistics/ledger',      Icon: ReceiptText,     roles: ['logistics','admin'] },
+  { name: 'Shipments',        href: '/dashboard/logistics/shipments',    Icon: Truck,           roles: ['logistics','admin','support'] },
+  { name: 'Hospital Network', href: '/dashboard/logistics/hospitals',    Icon: Building2,       roles: ['logistics','admin','support'] }, 
+  { name: 'Card Fulfillment', href: '/dashboard/logistics/card-fulfillment', Icon: CreditCard, roles: ['logistics','admin','support'] }, 
+  { name: 'Warehouses',       href: '/dashboard/logistics/warehouses',   Icon: Warehouse,       roles: ['logistics','admin','support'] },
+  { name: 'Team',             href: '/dashboard/logistics/team',         Icon: MapPin,          roles: ['logistics','admin','support'] },
+  { name: 'Funds Ledger',     href: '/dashboard/logistics/ledger',       Icon: ReceiptText,     roles: ['logistics','admin','support'] },
+  { name: 'Invited Members',  href: '/dashboard/team-members',           Icon: UserPlus,        roles: ['admin','support'] },
 ];
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
