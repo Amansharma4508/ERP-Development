@@ -6,6 +6,7 @@ export interface User {
   id: string;
   email: string;
   fullName: string;
+  phone?: string;
   role: 'user' | 'doctor' | 'admin' | 'logistics' | 'wallet_user';
   isApproved: boolean; // false for doctor/logistics until admin approves
 }
@@ -24,7 +25,8 @@ interface AuthContextType {
   walletOnboardingStatus: WalletOnboardingStatus;
   setWalletOnboardingStatus: (status: WalletOnboardingStatus) => void;
   login: (email: string, password: string) => Promise<AuthResult>;
-  register: (email: string, password: string, fullName: string, role: string) => Promise<AuthResult>;
+  // ✅ Updated register signature to accept 'phone'
+  register: (email: string, password: string, fullName: string, role: string, phone: string) => Promise<AuthResult>;
   logout: () => void;
 }
 
@@ -44,7 +46,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const [walletOnboardingStatus, setWalletOnboardingStatusState] = useState<WalletOnboardingStatus>('none');
 
-  // Helper functions ko useEffect se pehle define kiya taaki scope ka error na aaye
   const persistWalletOnboardingStatus = (userId: string, status: WalletOnboardingStatus) => {
     setWalletOnboardingStatusState(status);
     localStorage.setItem(getWalletStatusStorageKey(userId), status);
@@ -66,10 +67,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setToken(storedToken);
       setUser(parsedUser);
 
-      // Local cache se turant status set karo
       setWalletOnboardingStatusState(readWalletOnboardingStatus(parsedUser.id));
 
-      // ✅ Server se authoritative status fetch karo
       fetch('/api/wallet-onboarding/status', {
         headers: { Authorization: `Bearer ${storedToken}` },
       })
@@ -119,36 +118,47 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const register = async (email: string, password: string, fullName: string, role: string): Promise<AuthResult> => {
+  const register = async (email: string, password: string, fullName: string, role: string, phone: string): Promise<AuthResult> => {
     try {
       const response = await fetch('/api/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password, fullName, role }),
+        body: JSON.stringify({ email, password, fullName, role, phone }),
       });
 
-      const data = await response.json();
+      const result = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || 'Registration failed');
+        throw new Error(result.error || 'Registration failed');
       }
 
+      const responseData = result.data || result;
       const registeredUser: User = {
-        ...data.data.user,
-        isApproved: data.data.user.isApproved ?? true,
+        ...responseData.user,
+        isApproved: responseData.user?.isApproved ?? (role !== 'doctor' && role !== 'logistics'),
       };
-      const status: WalletOnboardingStatus = data.data.walletOnboardingStatus || (role === 'user' ? 'pending' : 'none');
+      const status: WalletOnboardingStatus = responseData.walletOnboardingStatus || 'pending';
+      const authToken = responseData.token;
 
-      setToken(data.data.token);
-      setUser(registeredUser);
-      persistWalletOnboardingStatus(registeredUser.id, status);
+      // ✅ FIX: Save token, user and update context state immediately upon registration
+      if (authToken) {
+        setToken(authToken);
+        localStorage.setItem('erp_token', authToken);
+      }
+      
+      if (registeredUser) {
+        setUser(registeredUser);
+        localStorage.setItem('erp_user', JSON.stringify(registeredUser));
+        persistWalletOnboardingStatus(registeredUser.id, status);
+      }
 
-      localStorage.setItem('erp_token', data.data.token);
-      localStorage.setItem('erp_user', JSON.stringify(registeredUser));
+      return {
+        user: registeredUser,
+        walletOnboardingStatus: status,
+      };
 
-      return { user: registeredUser, walletOnboardingStatus: status };
     } catch (error) {
-      console.error('[v0] Registration error:', error);
+      console.error('[v0] Register error:', error);
       throw error;
     }
   };

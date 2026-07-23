@@ -7,21 +7,34 @@ import { useEffect } from 'react';
 
 export default function WalletOnboardingPage() {
   const router = useRouter();
-  const { user, walletOnboardingStatus, setWalletOnboardingStatus } = useAuth();
+  const { user, isLoading, walletOnboardingStatus, setWalletOnboardingStatus } = useAuth(); // ✅ isLoading add kiya
 
   useEffect(() => {
-    if (!user) return;
+    if (isLoading) return; // ✅ Agar auth load ho raha hai toh wait karein
+
+    if (!user) {
+      router.replace('/login'); // ✅ Agar user logged out hai toh login page bhejein
+      return;
+    }
 
     if (user.role !== 'user') {
       router.replace('/dashboard');
       return;
     }
 
-    // If they've already submitted (or been approved), don't let them sit on this page again
     if (walletOnboardingStatus === 'in-progress' || walletOnboardingStatus === 'approved') {
       router.replace('/dashboard');
     }
-  }, [router, user, walletOnboardingStatus]);
+  }, [router, user, isLoading, walletOnboardingStatus]);
+
+  // ✅ Jab tak session load ho raha hai, loader dikhayein
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-600"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background px-4 py-8 sm:px-6 lg:px-8">
