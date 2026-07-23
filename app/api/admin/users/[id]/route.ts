@@ -11,7 +11,7 @@ async function requireAdmin(request: NextRequest) {
   return true;
 }
 
-// PATCH /api/admin/users/[id] — edit name, email, phone, status
+// PATCH /api/admin/users/[id] — edit name, email, phone, status, amount
 export async function PATCH(request: NextRequest, context: { params: Promise<{ id: string }> }) {
   try {
     if (!(await requireAdmin(request))) {
@@ -20,14 +20,15 @@ export async function PATCH(request: NextRequest, context: { params: Promise<{ i
 
     const { id } = await context.params;
     const body = await request.json();
-    const { fullName, email, phoneNumber, isBlocked } = body;
+    const { fullName, email, phoneNumber, isBlocked, amountGiven } = body;
 
-    // Update profile fields (name, phone, status)
+    // Update profile fields (name, phone, status, amount)
     const profileUpdates: Record<string, any> = {};
     if (fullName !== undefined) profileUpdates.full_name = fullName;
     if (phoneNumber !== undefined) profileUpdates.phone_number = phoneNumber;
     if (isBlocked !== undefined) profileUpdates.is_blocked = isBlocked;
     if (email !== undefined) profileUpdates.email = email; // keep profiles.email in sync too
+    if (amountGiven !== undefined) profileUpdates.amount_given = Number(amountGiven); // ✅ Added amount_given update
 
     if (Object.keys(profileUpdates).length > 0) {
       const { error: profileError } = await supabase

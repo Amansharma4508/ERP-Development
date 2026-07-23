@@ -15,7 +15,7 @@ const NAV_ALL = [
   { name: 'Dashboard',        href: '/dashboard',                     Icon: LayoutDashboard, roles: ['user','doctor','admin','logistics','support'] },
   { name: 'Health Records', href: '/dashboard/health',                Icon: HeartPulse,      roles: ['user','admin','support'] },
   { name: 'Appointments',   href: '/dashboard/appointments',          Icon: CalendarDays,    roles: ['user','doctor','admin','support'] },
-  { name: 'Wallet',         href: '/dashboard/wallet',                Icon: Wallet,          roles: ['user','admin','support'] },
+  { name: 'Wallet',         href: '/dashboard/wallet',                Icon: Wallet,          roles: ['user','support'] },
   { name: 'Users',          href: '/dashboard/users',                 Icon: User,            roles: ['admin','support'] },
   { name: 'Doctors',        href: '/dashboard/doctors',               Icon: Stethoscope,     roles: ['user','admin','support'] },
   { name: 'Inventory',      href: '/dashboard/inventory',             Icon: Package,         roles: ['doctor','admin','support'] },

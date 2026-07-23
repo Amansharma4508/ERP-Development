@@ -2,12 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { verifyToken } from '@/lib/auth';
 import { createClient } from '@supabase/supabase-js';
 
-function getSupabaseClient() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  if (!url || !key) return null;
-  return createClient(url, key);
-}
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+const supabase = createClient(supabaseUrl, supabaseKey);
 
 function guard(token: string | undefined) {
   if (!token) return null;
@@ -24,11 +21,6 @@ export async function GET(request: NextRequest) {
     const token = request.headers.get('authorization')?.split(' ')[1];
     if (!guard(token)) {
       return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const supabase = getSupabaseClient();
-    if (!supabase) {
-      return NextResponse.json({ success: false, error: 'Supabase credentials missing in environment variables' }, { status: 500 });
     }
 
     const { searchParams } = new URL(request.url);
@@ -52,13 +44,16 @@ export async function GET(request: NextRequest) {
       phone: v.phone,
       hospitalName: v.hospital_name,
       licenseType: v.license_type,
-      supplyStatus: v.supply_status,
+      state: v.state || '',
+      supplyStatus: v.supply_status || 'active',
+      amountGiven: Number(v.amount_given || 0),
+      amountUsed: Number(v.amount_used || 0),
       dueAmount: v.due_amount,
     }));
 
     return NextResponse.json({ success: true, data: formattedData });
   } catch (err: any) {
-    return NextResponse.json({ success: false, error: err.message || 'Internal Server Error' }, { status: 500 });
+    return NextResponse.json({ success: false, error: err.message }, { status: 500 });
   }
 }
 
@@ -71,15 +66,10 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { name, vendorType, categoryName, contactPerson, phone, hospitalName, licenseType } = body;
+    const { name, vendorType, categoryName, contactPerson, phone, hospitalName, licenseType, state, supplyStatus, amountGiven, amountUsed } = body;
 
     if (!name || !contactPerson || !phone || !hospitalName) {
       return NextResponse.json({ success: false, error: 'Missing required fields' }, { status: 400 });
-    }
-
-    const supabase = getSupabaseClient();
-    if (!supabase) {
-      return NextResponse.json({ success: false, error: 'Supabase credentials missing in environment variables' }, { status: 500 });
     }
 
     const { data, error } = await supabase
@@ -93,7 +83,10 @@ export async function POST(request: NextRequest) {
           phone,
           hospital_name: hospitalName,
           license_type: licenseType || '',
-          supply_status: 'active',
+          state: state || '',
+          supply_status: supplyStatus || 'active',
+          amount_given: Number(amountGiven || 0),
+          amount_used: Number(amountUsed || 0),
           due_amount: 0,
         },
       ])
@@ -103,6 +96,6 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ success: true, data: data[0] }, { status: 201 });
   } catch (err: any) {
-    return NextResponse.json({ success: false, error: err.message || 'Internal Server Error' }, { status: 500 });
+    return NextResponse.json({ success: false, error: err.message }, { status: 500 });
   }
 }

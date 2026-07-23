@@ -11,7 +11,7 @@ async function requireAdmin(request: NextRequest) {
   return true;
 }
 
-// app/api/admin/user/route.tsx
+// app/api/admin/users/route.ts
 
 export async function GET(request: NextRequest) {
   try {
@@ -21,7 +21,7 @@ export async function GET(request: NextRequest) {
 
     const { data, error } = await supabase
       .from('profiles')
-      .select('id, full_name, email, phone_number, photo_url, account_type, is_blocked, created_at')
+      .select('id, full_name, email, phone_number, photo_url, account_type, is_blocked, created_at, amount_given, amount_used')
       .eq('account_type', 'user')
       .order('created_at', { ascending: false });
 
@@ -31,35 +31,32 @@ export async function GET(request: NextRequest) {
     }
 
     const users = data.map(u => {
-  // 1. Pehle database wala URL check karein
-  let finalPhotoUrl = u.photo_url;
+      let finalPhotoUrl = u.photo_url;
 
-  // 2. Agar database mein null hai, toh hum 'id.jpg' ya 'id' format try karenge
-  // Note: Yahan aapko file extension (jaise .jpg ya .png) wahi rakhna hoga jo aapke storage mein hai
-  if (!finalPhotoUrl) {
-    // Agar aapka file name sirf 'user_id.jpg' hai toh:
-    finalPhotoUrl = `${u.id}.jpg`; // Yahan apna format adjust karein
-  }
+      if (!finalPhotoUrl) {
+        finalPhotoUrl = `${u.id}.jpg`;
+      }
 
-  // 3. Ab public URL generate karein
-  if (finalPhotoUrl && !finalPhotoUrl.startsWith('http')) {
-    const { data: publicUrlData } = supabase.storage
-      .from('live-photos')
-      .getPublicUrl(finalPhotoUrl);
-    
-    finalPhotoUrl = publicUrlData.publicUrl;
-  }
+      if (finalPhotoUrl && !finalPhotoUrl.startsWith('http')) {
+        const { data: publicUrlData } = supabase.storage
+          .from('live-photos')
+          .getPublicUrl(finalPhotoUrl);
+        
+        finalPhotoUrl = publicUrlData.publicUrl;
+      }
 
-  return {
-    id: u.id,
-    fullName: u.full_name,
-    email: u.email || '',
-    phoneNumber: u.phone_number || '',
-    photoUrl: finalPhotoUrl || '', 
-    isBlocked: u.is_blocked,
-    createdAt: u.created_at,
-  };
-});
+      return {
+        id: u.id,
+        fullName: u.full_name,
+        email: u.email || '',
+        phoneNumber: u.phone_number || '',
+        photoUrl: finalPhotoUrl || '', 
+        isBlocked: u.is_blocked,
+        createdAt: u.created_at,
+        amountGiven: Number(u.amount_given ?? 35000), // ✅ Mapped
+        amountUsed: Number(u.amount_used ?? 0),     // ✅ Mapped
+      };
+    });
 
     return toJson(successResponse({ users }, 200));
   } catch (error: any) {
@@ -67,6 +64,7 @@ export async function GET(request: NextRequest) {
     return toJson(errorResponse('Something went wrong', 500));
   }
 }
+
 // POST /api/admin/users — admin manually adds a new patient account
 export async function POST(request: NextRequest) {
   try {
@@ -75,7 +73,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { email, password, fullName, phoneNumber } = body;
+    const { email, password, fullName, phoneNumber, amountGiven } = body;
 
     if (!email || !password || !fullName) {
       return toJson(errorResponse('Email, password and full name are required', 400));
@@ -99,6 +97,8 @@ export async function POST(request: NextRequest) {
       return toJson(errorResponse('Failed to create user', 500));
     }
 
+    const initialAmount = Number(amountGiven) || 35000;
+
     const { error: profileError } = await supabase
       .from('profiles')
       .insert({
@@ -107,6 +107,8 @@ export async function POST(request: NextRequest) {
         account_type: 'user',
         email,
         phone_number: phoneNumber || null,
+        amount_given: initialAmount, // ✅ Default 35000 or custom saved
+        amount_used: 0,             // ✅ Default 0
       });
 
     if (profileError) {
@@ -126,6 +128,8 @@ export async function POST(request: NextRequest) {
             photoUrl: '',
             isBlocked: false,
             createdAt: new Date().toISOString(),
+            amountGiven: initialAmount,
+            amountUsed: 0,
           },
         },
         201
