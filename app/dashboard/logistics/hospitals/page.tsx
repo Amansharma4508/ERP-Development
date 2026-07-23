@@ -96,11 +96,10 @@ export default function HospitalNetworkPage() {
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-   console.log('Token check:', token); // <-- Yahan check karein
-  if (!token) {
-    setFormError('Authentication token missing. Please relogin.');
-    return;
-  }
+    if (!token) {
+      setFormError('Authentication token missing. Please relogin.');
+      return;
+    }
     setFormError('');
     setSaving(true);
     try {
@@ -123,6 +122,29 @@ export default function HospitalNetworkPage() {
       setFormError(err.message);
     } finally {
       setSaving(false);
+    }
+  };
+
+  // ✅ Delete Handler Added
+  const handleDelete = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this hospital partner?')) return;
+    if (!token) {
+      showToast('Authentication token missing', 'error');
+      return;
+    }
+
+    try {
+      const res = await fetch(`/api/logistics/vendors/${id}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Delete failed');
+
+      showToast('Hospital Partner deleted successfully');
+      fetchHospitals();
+    } catch (err: any) {
+      showToast(err.message, 'error');
     }
   };
 
@@ -204,9 +226,12 @@ export default function HospitalNetworkPage() {
                         {v.supplyStatus}
                       </span>
                     </td>
-                    <td className="px-5 py-3 text-center">
-                      <button onClick={() => openEdit(v)} className="p-1.5 rounded-lg bg-indigo-50 text-indigo-600 hover:bg-indigo-100 transition">
+                    <td className="px-5 py-3 text-center flex items-center justify-center gap-2">
+                      <button onClick={() => openEdit(v)} className="p-1.5 rounded-lg bg-indigo-50 text-indigo-600 hover:bg-indigo-100 transition" title="Edit">
                         <Pencil size={13} />
+                      </button>
+                      <button onClick={() => handleDelete(v.id)} className="p-1.5 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition" title="Delete">
+                        <Trash2 size={13} />
                       </button>
                     </td>
                   </tr>
@@ -217,7 +242,7 @@ export default function HospitalNetworkPage() {
         </div>
       </div>
 
-      {/* 📝 Onboard Hospital Modal */}
+      {/* 📝 Onboard/Edit Hospital Modal */}
       {showAdd && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
           <div className="bg-card rounded-2xl shadow-2xl border border-border w-full max-w-lg overflow-hidden">
