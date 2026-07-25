@@ -45,6 +45,11 @@ export async function GET(request: NextRequest) {
       hospitalName: v.hospital_name,
       licenseType: v.license_type,
       state: v.state || '',
+      location: v.location || '',
+      totalAmbulances: Number(v.total_ambulances || 0),
+      doctorsData: v.doctors_data || [], // <-- Yeh line missing thi!
+      totalStaff: Number(v.total_staff || 0),
+      hospitalImages: v.hospital_images || [],
       supplyStatus: v.supply_status || 'active',
       amountGiven: Number(v.amount_given || 0),
       amountUsed: Number(v.amount_used || 0),
@@ -66,7 +71,11 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { name, vendorType, categoryName, contactPerson, phone, hospitalName, licenseType, state, supplyStatus, amountGiven, amountUsed } = body;
+    const { 
+      name, vendorType, categoryName, contactPerson, phone, 
+      hospitalName, licenseType, state, location, totalAmbulances, 
+      doctorsData, totalStaff, hospitalImages, supplyStatus, amountGiven, amountUsed 
+    } = body;
 
     if (!name || !contactPerson || !phone || !hospitalName) {
       return NextResponse.json({ success: false, error: 'Missing required fields' }, { status: 400 });
@@ -84,6 +93,11 @@ export async function POST(request: NextRequest) {
           hospital_name: hospitalName,
           license_type: licenseType || '',
           state: state || '',
+          location: location || '',
+          total_ambulances: Number(totalAmbulances || 0),
+          doctors_data: doctorsData || [],
+          total_staff: Number(totalStaff || 0),
+          hospital_images: hospitalImages || [],
           supply_status: supplyStatus || 'active',
           amount_given: Number(amountGiven || 0),
           amount_used: Number(amountUsed || 0),

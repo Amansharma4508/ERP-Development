@@ -32,6 +32,10 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
     if (body.hospitalName !== undefined) updateData.hospital_name = body.hospitalName;
     if (body.licenseType !== undefined) updateData.license_type = body.licenseType;
     if (body.state !== undefined) updateData.state = body.state;
+    if (body.location !== undefined) updateData.location = body.location;
+    if (body.totalAmbulances !== undefined) updateData.total_ambulances = Number(body.totalAmbulances);
+    if (body.doctorsData !== undefined) updateData.doctors_data = body.doctorsData;
+    if (body.hospitalImages !== undefined) updateData.hospital_images = body.hospitalImages;
     if (body.supplyStatus !== undefined) updateData.supply_status = body.supplyStatus;
     if (body.amountGiven !== undefined) updateData.amount_given = Number(body.amountGiven);
     if (body.amountUsed !== undefined) updateData.amount_used = Number(body.amountUsed);
