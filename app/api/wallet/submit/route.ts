@@ -113,7 +113,11 @@ export async function POST(request: Request) {
             pin_code: formData.pinCode,
             address_id: formData.addressId,
 
-            uid_number: formData.uidNumber ? '[UID Provided]' : '[Not Provided]',
+            // Purana code:
+// uid_number: formData.uidNumber ? '[UID Provided]' : '[Not Provided]',
+
+// Naya code (Real number save karne ke liye):
+uid_number: formData.uidNumber || null,
             pan_card: formData.panCard || '[PAN Omitted]',
             food_intake: formData.foodIntake,
             smoking: formData.smoking,

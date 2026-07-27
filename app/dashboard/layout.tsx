@@ -21,7 +21,7 @@ const NAV_ALL = [
   { name: 'Inventory',      href: '/dashboard/inventory',             Icon: Package,         roles: ['doctor','admin','support'] },
   { name: 'Orders',         href: '/dashboard/orders',                Icon: ShoppingCart,    roles: ['doctor','admin','support'] },
   { name: 'Accounting',     href: '/dashboard/accounting',            Icon: BookOpen,        roles: ['admin','support'] },
-  { name: 'Wallet Control', href: '/dashboard/wallet-dashboard',      Icon: LayoutGrid,      roles: ['admin','support'] },
+  { name: 'Wallet Control', href: '/dashboard/admin/wallet-control',      Icon: LayoutGrid,      roles: ['admin','support'] },
   // ── Logistics Panel ──────────────────────────────────────────────────────
   { name: 'Shipments',        href: '/dashboard/logistics/shipments',    Icon: Truck,           roles: ['logistics','admin','support'] },
   { name: 'Hospital Network', href: '/dashboard/logistics/hospitals',    Icon: Building2,       roles: ['logistics','admin','support'] }, 
