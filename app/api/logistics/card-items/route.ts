@@ -7,41 +7,19 @@ const supabaseAdmin = createClient(supabaseUrl, supabaseServiceRole);
 
 export async function GET(request: NextRequest) {
   try {
-    // ✅ supabaseAdmin use karein taaki reference error na aaye
+    // card_print_items table se sara data fetch karein
     const { data, error } = await supabaseAdmin
       .from('card_print_items')
-      .select(`
-        id,
-        batch_id,
-        card_number,
-        status,
-        created_at,
-        user_id,
-        profiles:user_id (
-          full_name,
-          phone_number
-        )
-      `);
+      .select('*')
+      .order('created_at', { ascending: false });
 
-    if (error) {
-      console.error('Error fetching card print items:', error);
-      return NextResponse.json({ success: false, error: error.message }, { status: 500 });
-    }
+    if (error) throw error;
 
-    // Data ko format karke frontend ke liye 'phone' key mein map kar rahe hain
-    const formattedData = (data || []).map((item: any) => ({
-      id: item.id,
-      batch_id: item.batch_id,
-      user_name: item.profiles?.full_name || 'Unknown',
-      phone: item.profiles?.phone_number || 'N/A', // ✅ Database ka phone_number yahan correctly map ho raha hai
-      card_number: item.card_number,
-      status: item.status,
-      created_at: item.created_at,
-    }));
-
-    return NextResponse.json({ success: true, data: formattedData });
-  } catch (error: any) {
-    console.error('Unexpected error:', error);
-    return NextResponse.json({ success: false, error: error.message || 'Something went wrong' }, { status: 500 });
+    return NextResponse.json({
+      success: true,
+      data: data || [],
+    });
+  } catch (err: any) {
+    return NextResponse.json({ success: false, error: err.message }, { status: 500 });
   }
 }
