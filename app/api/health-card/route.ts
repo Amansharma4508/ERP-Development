@@ -1,36 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import jwt from 'jsonwebtoken';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
 const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
-  auth: {
-    persistSession: false,
-  },
+  auth: { persistSession: false },
 });
 
-// Storage bucket jisme live photos upload hote hain (Image 1 se confirm: "live-photos", PUBLIC)
 const LIVE_PHOTO_BUCKET = 'live-photos';
 
-/**
- * DB mein live_photo_url kabhi full public URL (http...) hota hai,
- * kabhi sirf filename/path (jaise "WhatsApp Image 2026-07-07 at 11.54.4....jpeg").
- * Ye function dono cases handle karke hamesha ek valid loadable public URL return karta hai.
- */
 function resolveLivePhotoUrl(rawValue: string | null): string | null {
   if (!rawValue) return null;
-
-  // Already full URL hai to as-is return karo
   if (rawValue.startsWith('http://') || rawValue.startsWith('https://')) {
     return rawValue;
   }
-
-  // Warna isse storage bucket ka path/filename maan kar public URL banao
   const { data } = supabaseAdmin.storage
     .from(LIVE_PHOTO_BUCKET)
     .getPublicUrl(rawValue);
-
   return data?.publicUrl ?? null;
 }
 
@@ -46,65 +34,70 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Token se user nikalna (Supabase session token verify)
-    const { data: userData, error: authError } = await supabaseAdmin.auth.getUser(token);
-
-    if (authError || !userData?.user) {
+    // Login route mein jo secret ya logic use hota hai token generate karne ke liye
+    // Yahan hum token ko decode kar rahe hain taaki userId mil sake
+    const jwtSecret = process.env.JWT_SECRET || process.env.SUPABASE_JWT_SECRET || 'your-secret-key';
+    
+    let decodedToken: any;
+    try {
+      decodedToken = jwt.verify(token, jwtSecret);
+    } catch (err) {
       return NextResponse.json(
         { success: false, error: 'Invalid or expired token' },
         { status: 401 }
       );
     }
 
-    const userId = userData.user.id;
+    const userId = decodedToken?.id || decodedToken?.userId;
 
-    const { data, error } = await supabaseAdmin
+    if (!userId) {
+      return NextResponse.json(
+        { success: false, error: 'User ID missing in token' },
+        { status: 401 }
+      );
+    }
+
+    // 1. Fetch Wallet Application Details
+    const { data: appData, error: appError } = await supabaseAdmin
       .from('wallet_applications')
-      .select(`
-        full_name,
-        father_name,
-        mother_name,
-        dob,
-        gender,
-        blood_group,
-        house_number,
-        ward_number,
-        village_city,
-        gram_panchayat,
-        block,
-        district,
-        state,
-        pin_code,
-        head_of_family,
-        area_code,
-        live_photo_url,
-        card_number,
-        status,
-        created_at
-      `)
+      .select('*')
       .eq('user_id', userId)
       .order('created_at', { ascending: false })
       .limit(1)
       .maybeSingle();
 
-    if (error) {
+    if (appError) {
       return NextResponse.json(
-        { success: false, error: error.message },
+        { success: false, error: appError.message },
         { status: 400 }
       );
     }
 
-    if (!data) {
-      return NextResponse.json(
-        { success: false, error: 'No application found' },
-        { status: 404 }
-      );
-    }
+    // 2. Fetch Profile Details
+    const { data: profileData } = await supabaseAdmin
+      .from('profiles')
+      .select('amount_given, amount_used, balance')
+      .eq('id', userId)
+      .maybeSingle();
 
-    // live_photo_url ko normalize karke bhejo taaki frontend <img> hamesha valid URL pe point kare
+    // 3. Fetch User Transactions History
+    const { data: transactionsData } = await supabaseAdmin
+      .from('wallet_transactions')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false });
+
+    const amountGiven = profileData?.amount_given ?? 35000;
+    const amountUsed = profileData?.amount_used ?? 0;
+    const remainingBalance = profileData?.balance ?? (amountGiven - amountUsed);
+
     const responseData = {
-      ...data,
-      live_photo_url: resolveLivePhotoUrl(data.live_photo_url),
+      ...(appData || {}),
+      live_photo_url: resolveLivePhotoUrl(appData?.live_photo_url),
+      amount_given: amountGiven,
+      amount_used: amountUsed,
+      remaining_balance: remainingBalance,
+      transactions: transactionsData || [],
     };
 
     return NextResponse.json({ success: true, data: responseData }, { status: 200 });

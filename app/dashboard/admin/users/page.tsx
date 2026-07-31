@@ -2,8 +2,8 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { useAuth } from '@/lib/auth-context';
-import { Search, Plus, Pencil, Trash2, X, AlertCircle, User as UserIcon, ChevronLeft, ChevronRight } from 'lucide-react';
-
+import { Search, Plus, Pencil, Trash2, X, AlertCircle, User as UserIcon, ChevronLeft, ChevronRight, Eye } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 interface AdminUser {
   id: string;
   fullName: string;
@@ -17,6 +17,7 @@ interface AdminUser {
 }
 
 export default function UsersPage() {
+  const router = useRouter();
   const { token } = useAuth();
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [loading, setLoading] = useState(true);
@@ -31,9 +32,14 @@ export default function UsersPage() {
   const [addForm, setAddForm] = useState({ fullName: '', email: '', password: '', phoneNumber: '', amountGiven: 35000 });
   const [addLoading, setAddLoading] = useState(false);
 
+  // User Edit Modal State (Ab ise Wallet View action par trigger karenge)
   const [editingUser, setEditingUser] = useState<AdminUser | null>(null);
   const [editForm, setEditForm] = useState({ fullName: '', email: '', phoneNumber: '', isBlocked: false, amountGiven: 35000 });
   const [editLoading, setEditLoading] = useState(false);
+
+  // Wallet Control View Modal State (Ab ise User Table ke Edit action par trigger karenge)
+  const [walletViewUser, setWalletViewUser] = useState<AdminUser | null>(null);
+  const [walletViewLoading, setWalletViewLoading] = useState(false);
 
   const [deletingUser, setDeletingUser] = useState<AdminUser | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
@@ -62,7 +68,6 @@ export default function UsersPage() {
 
   useEffect(() => { fetchUsers(); }, [fetchUsers]);
 
-  // Reset pagination to page 1 when search query changes
   useEffect(() => {
     setCurrentPage(1);
   }, [search]);
@@ -72,7 +77,6 @@ export default function UsersPage() {
     u.email.toLowerCase().includes(search.toLowerCase())
   );
 
-  // Pagination Calculations
   const totalPages = Math.ceil(filtered.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
   const currentUsers = filtered.slice(startIndex, startIndex + itemsPerPage);
@@ -106,6 +110,12 @@ export default function UsersPage() {
     }
   };
 
+  // Wallet View Open (User Edit action click hone par ab ye Wallet Control view/modal khulega)
+  const openWalletView = (u: AdminUser) => {
+    router.push(`/dashboard/admin/users/${u.id}`);
+  };
+
+  // User Edit Modal Open (Wallet Control view/table ke view action click hone par ab ye User Edit modal khulega)
   const openEdit = (u: AdminUser) => {
     setEditingUser(u);
     setEditForm({ 
@@ -177,7 +187,7 @@ export default function UsersPage() {
         </button>
       </div>
 
-      {error && !showAddModal && !editingUser && (
+      {error && !showAddModal && !editingUser && !walletViewUser && (
         <div className="p-4 rounded-2xl bg-red-50 border border-red-200 text-red-700 text-sm flex items-center gap-3 shadow-sm">
           <AlertCircle size={18} className="shrink-0" /> 
           <span>{error}</span>
@@ -275,23 +285,35 @@ export default function UsersPage() {
                         </span>
                       </td>
                       <td className="py-4 px-6 text-right">
-                        <div className="inline-flex items-center gap-1.5 bg-muted/50 p-1 rounded-xl border border-border/60">
-                          <button 
-                            onClick={() => openEdit(u)} 
-                            className="w-8 h-8 rounded-lg hover:bg-card hover:text-indigo-600 flex items-center justify-center text-muted-foreground transition shadow-sm" 
-                            title="Edit User"
-                          >
-                            <Pencil size={15} />
-                          </button>
-                          <button 
-                            onClick={() => { setDeletingUser(u); setError(''); }} 
-                            className="w-8 h-8 rounded-lg hover:bg-card hover:text-red-600 flex items-center justify-center text-muted-foreground transition shadow-sm" 
-                            title="Delete User"
-                          >
-                            <Trash2 size={15} />
-                          </button>
-                        </div>
-                      </td>
+  <div className="inline-flex items-center gap-1.5 bg-muted/50 p-1 rounded-xl border border-border/60">
+    {/* View Wallet Details */}
+    <button 
+      onClick={() => router.push(`/dashboard/admin/users/${u.id}`)}
+      className="w-8 h-8 rounded-lg hover:bg-card hover:text-indigo-600 flex items-center justify-center text-muted-foreground transition shadow-sm" 
+      title="View Wallet Details"
+    >
+      <Eye size={15} />
+    </button>
+    
+    {/* Edit User Modal Trigger */}
+    <button 
+      onClick={() => openEdit(u)} 
+      className="w-8 h-8 rounded-lg hover:bg-card hover:text-indigo-600 flex items-center justify-center text-muted-foreground transition shadow-sm" 
+      title="Edit User"
+    >
+      <Pencil size={15} />
+    </button>
+
+    {/* Delete User */}
+    <button 
+      onClick={() => { setDeletingUser(u); setError(''); }} 
+      className="w-8 h-8 rounded-lg hover:bg-card hover:text-red-600 flex items-center justify-center text-muted-foreground transition shadow-sm" 
+      title="Delete User"
+    >
+      <Trash2 size={15} />
+    </button>
+  </div>
+</td>
                     </tr>
                   );
                 })}
@@ -392,7 +414,66 @@ export default function UsersPage() {
         </div>
       )}
 
-      {/* Edit User Modal */}
+      {/* Wallet View Modal (Ye ab User Table ke action/edit par khulega) */}
+      {walletViewUser && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
+          <div className="bg-card rounded-3xl shadow-2xl border border-border w-full max-w-lg overflow-hidden">
+            <div className="flex items-center justify-between p-6 border-b border-border bg-muted/25">
+              <div>
+                <h2 className="text-xl font-bold text-foreground">Wallet Control & Details</h2>
+                <p className="text-xs text-muted-foreground mt-0.5">Viewing financial summary for {walletViewUser.fullName}</p>
+              </div>
+              <button onClick={() => setWalletViewUser(null)} className="w-9 h-9 rounded-2xl hover:bg-muted flex items-center justify-center text-muted-foreground transition">
+                <X size={18} />
+              </button>
+            </div>
+            <div className="p-6 space-y-6">
+              <div className="grid grid-cols-3 gap-4 text-center">
+                <div className="p-4 rounded-2xl bg-muted/30 border border-border">
+                  <p className="text-xs text-muted-foreground font-medium uppercase">Given</p>
+                  <p className="text-lg font-bold text-foreground mt-1">₹{walletViewUser.amountGiven ?? 35000}</p>
+                </div>
+                <div className="p-4 rounded-2xl bg-muted/30 border border-border">
+                  <p className="text-xs text-muted-foreground font-medium uppercase">Used</p>
+                  <p className="text-lg font-bold text-amber-600 mt-1">₹{walletViewUser.amountUsed ?? 0}</p>
+                </div>
+                <div className="p-4 rounded-2xl bg-muted/30 border border-border">
+                  <p className="text-xs text-muted-foreground font-medium uppercase">Balance</p>
+                  <p className="text-lg font-bold text-emerald-600 mt-1">₹{(walletViewUser.amountGiven ?? 35000) - (walletViewUser.amountUsed ?? 0)}</p>
+                </div>
+              </div>
+
+              <div className="space-y-3 pt-2 border-t border-border">
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">User Name:</span>
+                  <span className="font-semibold text-foreground">{walletViewUser.fullName}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Email:</span>
+                  <span className="font-semibold text-foreground">{walletViewUser.email}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Phone:</span>
+                  <span className="font-semibold text-foreground">{walletViewUser.phoneNumber || 'N/A'}</span>
+                </div>
+              </div>
+
+              <div className="pt-2">
+                <button onClick={() => { 
+                  const targetUser = walletViewUser;
+                  setWalletViewUser(null);
+                  openEdit(targetUser); // Yahan se aap chaho to direct Edit form khol sakte ho
+                }}
+                  className="w-full py-3 rounded-2xl font-semibold text-white bg-indigo-600 hover:bg-indigo-700 transition shadow-md shadow-indigo-600/20">
+                  Edit User Details & Wallet Limit
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit User Modal (Ye ab Wallet Control / View action par khulega) */}
       {editingUser && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
           <div className="bg-card rounded-3xl shadow-2xl border border-border w-full max-w-lg overflow-hidden">

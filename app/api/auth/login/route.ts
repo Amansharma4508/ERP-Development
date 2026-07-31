@@ -100,7 +100,7 @@
 // }
 import { NextRequest } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-
+import { generateToken } from '@/lib/auth'; 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseServiceRole = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
@@ -215,6 +215,8 @@ const supabaseAdmin = createClient(supabaseUrl, supabaseServiceRole);
 //   }
 // }
 
+
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
@@ -269,21 +271,30 @@ export async function POST(request: NextRequest) {
         fullName = inviteMember.name || 'Team Member';
       } else {
         // 4. CHECK 3: Fallback to normal profiles
-        const { data: profile } = await supabaseAdmin
-          .from('profiles')
-          .select('full_name, account_type')
-          .eq('id', authUser.id)
-          .maybeSingle();
+       const { data: profile } = await supabaseAdmin
+  .from('profiles')
+  .select('full_name, account_type')
+  .eq('id', authUser.id)
+  .maybeSingle();
 
-        fullName = profile?.full_name || 'ERP User';
+fullName = profile?.full_name || 'ERP User';
+// 👈 YAHAN FIX HAI: Profiles table ka account_type ab role mein properly assign hoga
+role = profile?.account_type ? profile.account_type.toLowerCase() : 'user';
       }
     }
-
+    // 5. Apna khud ka JWT generate karo (role properly embedded hoga isme)
+    const appToken = generateToken({
+      id: authUser.id,
+      userId: authUser.id,
+      email: authUser.email || '',
+      fullName,
+      role: role as any,   // 'admin' | 'user' | 'doctor' | etc.
+    });
     // 5. Final Response
     return new Response(JSON.stringify({
       success: true,
       data: {
-        token: session?.access_token || '',
+        token: appToken,
         user: {
           id: authUser.id,
           email: authUser.email || '',

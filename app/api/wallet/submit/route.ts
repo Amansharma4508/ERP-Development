@@ -150,6 +150,7 @@ uid_number: formData.uidNumber || null,
       .select();
 
     if (error) {
+      console.error('SUPABASE INSERT ERROR:', error);
       return NextResponse.json(
         { success: false, error: `Database entry failed: ${error.message}` },
         { status: 400 },

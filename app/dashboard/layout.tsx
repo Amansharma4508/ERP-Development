@@ -13,14 +13,16 @@ import {
 
 const NAV_ALL = [
   { name: 'Dashboard',        href: '/dashboard',                     Icon: LayoutDashboard, roles: ['user','doctor','admin','logistics','support'] },
-  { name: 'Health Records', href: '/dashboard/health',                Icon: HeartPulse,      roles: ['user','admin','support'] },
-  { name: 'Appointments',   href: '/dashboard/appointments',          Icon: CalendarDays,    roles: ['user','doctor','admin','support'] },
+  { name: 'Health Records', href: '/dashboard/health',                Icon: HeartPulse,      roles: ['user','support'] },
+  { name: 'Appointments',   href: '/dashboard/appointments',          Icon: CalendarDays,    roles: ['user'] },
+  { name: 'Appointments',   href: '/dashboard/doctor-panel/appointments',          Icon: CalendarDays,    roles: ['doctor','support'] },
   { name: 'Wallet',         href: '/dashboard/wallet',                Icon: Wallet,          roles: ['user','support'] },
-  { name: 'Users',          href: '/dashboard/users',                 Icon: User,            roles: ['admin','support'] },
-  { name: 'Doctors',        href: '/dashboard/doctors',               Icon: Stethoscope,     roles: ['user','admin','support'] },
-  { name: 'Inventory',      href: '/dashboard/inventory',             Icon: Package,         roles: ['doctor','admin','support'] },
-  { name: 'Orders',         href: '/dashboard/orders',                Icon: ShoppingCart,    roles: ['doctor','admin','support'] },
-  { name: 'Accounting',     href: '/dashboard/accounting',            Icon: BookOpen,        roles: ['admin','support'] },
+  { name: 'Users',          href: '/dashboard/admin/users',                 Icon: User,            roles: ['admin','support'] },
+  { name: 'Doctors',        href: '/dashboard/doctors',               Icon: Stethoscope,     roles: ['user','support'] },
+  { name: 'Doctors',        href: '/dashboard//admin/doctors',               Icon: Stethoscope,     roles: ['admin','support'] },
+  // { name: 'Inventory',      href: '/dashboard/inventory',             Icon: Package,         roles: ['doctor','admin','support'] },
+  // { name: 'Orders',         href: '/dashboard/orders',                Icon: ShoppingCart,    roles: ['doctor','admin','support'] },
+  // { name: 'Accounting',     href: '/dashboard/accounting',            Icon: BookOpen,        roles: ['admin','support'] },
   { name: 'Wallet Control', href: '/dashboard/admin/wallet-control',      Icon: LayoutGrid,      roles: ['admin','support'] },
   // ── Logistics Panel ──────────────────────────────────────────────────────
   { name: 'Shipments',        href: '/dashboard/logistics/shipments',    Icon: Truck,           roles: ['logistics','admin','support'] },

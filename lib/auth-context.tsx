@@ -25,7 +25,6 @@ interface AuthContextType {
   walletOnboardingStatus: WalletOnboardingStatus;
   setWalletOnboardingStatus: (status: WalletOnboardingStatus) => void;
   login: (email: string, password: string) => Promise<AuthResult>;
-  // ✅ Updated register signature to accept 'phone'
   register: (email: string, password: string, fullName: string, role: string, phone: string) => Promise<AuthResult>;
   logout: () => void;
 }
@@ -41,10 +40,36 @@ const readWalletOnboardingStatus = (userId?: string | null): WalletOnboardingSta
 };
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
-  const [token, setToken] = useState<string | null>(null);
+  // Lazy initial state se token aur user ko direct localStorage se uthaya taaki pehli render mein hi token available rahe
+  const [user, setUser] = useState<User | null>(() => {
+    if (typeof window === 'undefined') return null;
+    try {
+      const storedUser = localStorage.getItem('erp_user');
+      return storedUser ? JSON.parse(storedUser) : null;
+    } catch {
+      return null;
+    }
+  });
+
+  const [token, setToken] = useState<string | null>(() => {
+    if (typeof window === 'undefined') return null;
+    return localStorage.getItem('erp_token');
+  });
+
   const [isLoading, setIsLoading] = useState(true);
-  const [walletOnboardingStatus, setWalletOnboardingStatusState] = useState<WalletOnboardingStatus>('none');
+  const [walletOnboardingStatus, setWalletOnboardingStatusState] = useState<WalletOnboardingStatus>(() => {
+    if (typeof window === 'undefined') return 'none';
+    try {
+      const storedUser = localStorage.getItem('erp_user');
+      if (storedUser) {
+        const parsed = JSON.parse(storedUser);
+        return readWalletOnboardingStatus(parsed.id);
+      }
+    } catch {
+      // ignore
+    }
+    return 'none';
+  });
 
   const persistWalletOnboardingStatus = (userId: string, status: WalletOnboardingStatus) => {
     setWalletOnboardingStatusState(status);
@@ -63,22 +88,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const storedUser = localStorage.getItem('erp_user');
 
     if (storedToken && storedUser) {
-      const parsedUser = JSON.parse(storedUser) as User;
-      setToken(storedToken);
-      setUser(parsedUser);
+      try {
+        const parsedUser = JSON.parse(storedUser) as User;
+        setWalletOnboardingStatusState(readWalletOnboardingStatus(parsedUser.id));
 
-      setWalletOnboardingStatusState(readWalletOnboardingStatus(parsedUser.id));
-
-      fetch('/api/wallet-onboarding/status', {
-        headers: { Authorization: `Bearer ${storedToken}` },
-      })
-        .then((res) => res.json())
-        .then((data) => {
-          if (data.success) {
-            persistWalletOnboardingStatus(parsedUser.id, data.data.status);
-          }
+        fetch('/api/wallet-onboarding/status', {
+          headers: { Authorization: `Bearer ${storedToken}` },
         })
-        .catch((err) => console.error('Failed to sync wallet status:', err));
+          .then((res) => res.json())
+          .then((data) => {
+            if (data.success && data.data?.status) {
+              persistWalletOnboardingStatus(parsedUser.id, data.data.status);
+            }
+          })
+          .catch((err) => console.error('Failed to sync wallet status:', err));
+      } catch (e) {
+        console.error('Failed to parse stored user:', e);
+        localStorage.removeItem('erp_user');
+        localStorage.removeItem('erp_token');
+        setUser(null);
+        setToken(null);
+      }
     }
 
     setIsLoading(false);
@@ -98,10 +128,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         throw new Error(data.error || 'Login failed');
       }
 
+      const apiUser = data.data.user;
       const loggedInUser: User = {
-        ...data.data.user,
-        isApproved: data.data.user.isApproved ?? true,
+        ...apiUser,
+        role: (apiUser.role || apiUser.account_type || 'user').toLowerCase() as User['role'],
+        isApproved: apiUser.isApproved ?? apiUser.is_approved ?? true,
       };
+
       const status: WalletOnboardingStatus = data.data.walletOnboardingStatus || 'none';
 
       setToken(data.data.token);
@@ -133,17 +166,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       const responseData = result.data || result;
+      const apiRegUser = responseData.user || {};
+      
       const registeredUser: User = {
-        ...responseData.user,
-        isApproved: responseData.user?.isApproved ?? (role !== 'doctor' && role !== 'logistics'),
+        ...apiRegUser,
+        role: (apiRegUser.role || apiRegUser.account_type || role || 'user').toLowerCase() as User['role'],
+        isApproved: apiRegUser?.isApproved ?? apiRegUser?.is_approved ?? (role !== 'doctor' && role !== 'logistics'),
       };
+
       const status: WalletOnboardingStatus = responseData.walletOnboardingStatus || 'pending';
       const authToken = responseData.token;
 
-      // ✅ FIX: Save token, user and update context state immediately upon registration
       if (authToken) {
         setToken(authToken);
         localStorage.setItem('erp_token', authToken);
+      } else {
+        localStorage.removeItem('erp_token');
       }
       
       if (registeredUser) {

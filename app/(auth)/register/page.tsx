@@ -7,8 +7,8 @@ import Link from 'next/link';
 import { User, Stethoscope, Cross, AlertCircle, Truck, Wallet, Check } from 'lucide-react';
 
 const ROLES = [
-  { value: 'user',        label: 'Patient',        Icon: User,        desc: 'Book appointments, track health records',      color: 'border-indigo-400 bg-indigo-50 text-indigo-700'  },
-  { value: 'doctor',      label: 'Doctor',         Icon: Stethoscope, desc: 'Manage appointments and patients',               color: 'border-emerald-400 bg-emerald-50 text-emerald-700'},
+  { value: 'user',        label: 'Patient',        Icon: User,        desc: 'Book appointments, track health records',    color: 'border-indigo-400 bg-indigo-50 text-indigo-700'  },
+  { value: 'doctor',      label: 'Doctor',         Icon: Stethoscope, desc: 'Manage appointments and patients',                color: 'border-emerald-400 bg-emerald-50 text-emerald-700'},
   { value: 'logistics',   label: 'Logistics',      Icon: Truck,       desc: 'Supply chain and shipment tracking',            color: 'border-amber-400 bg-amber-50 text-amber-700'     },
   { value: 'wallet_user', label: 'Virtual Wallet', Icon: Wallet,      desc: 'State-funded ₹35,000 health wallet account',  color: 'border-teal-400 bg-teal-50 text-teal-700'        },
 ];
@@ -40,12 +40,17 @@ export default function RegisterPage() {
       return;
     }
 
-    setError(''); setLoading(true);
+    setError(''); 
+    setLoading(true);
+    
     try {
       const { user } = await register(form.email, form.password, form.fullName, form.role, form.phone);
 
-      if (NEEDS_APPROVAL.includes(user.role)) {
-        router.push('/pending-approval');
+      // Redirection logic based on role
+      if (user.role === 'doctor') {
+        router.push('/dashboard');
+      } else if (user.role === 'logistics') {
+        router.push('/dashboard/logistics');
       } else if (user.role === 'wallet_user') {
         router.push('/virtual-wallet');
       } else {
@@ -53,7 +58,9 @@ export default function RegisterPage() {
       }
     } catch (err: any) {
       setError(err.message || 'Registration failed');
-    } finally { setLoading(false); }
+    } finally { 
+      setLoading(false); 
+    }
   };
 
   const selectedRole = ROLES.find(r => r.value === form.role);

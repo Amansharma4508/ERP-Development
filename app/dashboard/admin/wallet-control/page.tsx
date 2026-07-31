@@ -1,380 +1,435 @@
-"tsx"
 'use client';
 
 import { useState, useEffect } from 'react';
-import { createClient } from '@supabase/supabase-js'; // Or use your project's pre-configured supabase client
-import { 
-  Eye, 
-  Edit, 
-  Trash2, 
-  Search, 
-  CheckCircle, 
-  XCircle, 
-  Clock, 
-  FileText, 
-  User, 
-  Phone, 
-  Mail, 
-  Calendar,
-  X
-} from 'lucide-react';
 import { useRouter } from 'next/navigation';
-// Initialize Supabase client (Ensure you replace these or import your shared client instance)
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
+import { createClient } from '@supabase/supabase-js';
+import { Edit, X, Trash2, ChevronLeft, ChevronRight } from 'lucide-react';
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL || '',
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
+);
+
+const ITEMS_PER_PAGE = 20;
 
 export default function WalletControlPage() {
-  const router = useRouter()
+  const router = useRouter();
   const [applications, setApplications] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
-  
-  // Modal states
-  const [selectedApp, setSelectedApp] = useState<any | null>(null);
-  const [isViewModalOpen, setIsViewModalOpen] = useState(false);
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  
-  // Edit form state
-  const [editStatus, setEditStatus] = useState('');
 
-// 1. Fetch applications from API route
-  const fetchApplications = async () => {
-    setLoading(true);
-    try {
-      const res = await fetch('/api/admin/wallet-applications');
-      const result = await res.json();
-      
-      if (result.success) {
-        setApplications(result.data || []);
-      } else {
-        console.error('API Error:', result.error);
-      }
-    } catch (error) {
-      console.error('Failed to fetch applications:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+
+  // Edit Modal States
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [selectedApp, setSelectedApp] = useState<any>(null);
+  const [addAmount, setAddAmount] = useState<string>('');
+  const [saving, setSaving] = useState(false);
+
+  // Delete states
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchApplications();
   }, []);
 
-// 3. Delete application via API route
+  const fetchApplications = async () => {
+    setLoading(true);
+
+    // Pehle total count nikalo taaki pata chale DB mein kitne records hain
+    const { count, error: countError } = await supabase
+      .from('wallet_applications')
+      .select('*', { count: 'exact', head: true });
+
+    console.log('Total records in DB (count):', count, countError);
+
+    // Ab sab records ko range/pagination ke through fetch karo
+    // (Supabase default se sirf 1000 rows return karta hai agar range specify na karo)
+    let allData: any[] = [];
+    const pageSize = 1000;
+    let from = 0;
+    let keepFetching = true;
+
+    while (keepFetching) {
+      const to = from + pageSize - 1;
+      const { data, error } = await supabase
+        .from('wallet_applications')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .range(from, to);
+
+      if (error) {
+        console.error('Fetch error:', error);
+        keepFetching = false;
+        break;
+      }
+
+      if (data && data.length > 0) {
+        allData = [...allData, ...data];
+        from += pageSize;
+        if (data.length < pageSize) {
+          keepFetching = false;
+        }
+      } else {
+        keepFetching = false;
+      }
+    }
+
+    console.log('Records actually fetched:', allData.length);
+
+    setApplications(allData);
+    setLoading(false);
+  };
+
+  // Handle Delete
   const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this wallet application?')) return;
-    
+    const confirmed = window.confirm(
+      'Kya aap sach mein is application ko delete karna chahte hain? Ye action wapas nahi ho sakta.'
+    );
+    if (!confirmed) return;
+
+    setDeletingId(id);
     try {
-      const res = await fetch(`/api/admin/wallet-applications?id=${id}`, {
-        method: 'DELETE',
-      });
-      
-      const result = await res.json();
-      if (result.success) {
-        setApplications(applications.filter((app) => app.id !== id));
-      } else {
-        alert('Error: ' + result.error);
+      const { error } = await supabase
+        .from('wallet_applications')
+        .delete()
+        .eq('id', id);
+
+      if (error) {
+        throw new Error(error.message || JSON.stringify(error));
       }
-    } catch (error) {
-      console.error('Error deleting application:', error);
+
+      // Local state se bhi turant remove karo
+      setApplications((prev) => prev.filter((app) => app.id !== id));
+
+      // Agar current page ka last item delete ho gaya aur ye pehla page nahi hai, ek page peeche jao
+      const newTotalPages = Math.ceil((applications.length - 1) / ITEMS_PER_PAGE);
+      if (currentPage > newTotalPages && currentPage > 1) {
+        setCurrentPage(currentPage - 1);
+      }
+
+      alert('Application deleted successfully!');
+    } catch (err: any) {
+      console.error('Error deleting application:', err);
+      alert(`Failed to delete application: ${err.message || 'Unknown error'}`);
+    } finally {
+      setDeletingId(null);
     }
   };
 
-// 2. Update status via API route
-  const handleUpdateStatus = async (id: string) => {
+  // Handle Edit Form Submission
+  const handleEditSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedApp) return;
+
+    setSaving(true);
     try {
-      const res = await fetch('/api/admin/wallet-applications', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id, status: editStatus }),
-      });
-      
-      const result = await res.json();
-      if (result.success) {
-        setApplications(applications.map(app => app.id === id ? { ...app, status: editStatus } : app));
-        setIsEditModalOpen(false);
-        alert('Status updated successfully!');
-      } else {
-        alert('Error: ' + result.error);
+      const currentAppAmount = Number(selectedApp.amount || 0);
+      const amountToAdd = Number(addAmount || 0);
+      const newAppTotal = currentAppAmount + amountToAdd;
+
+      // History log banao
+      let updatedHistory = selectedApp.amount_history || [];
+      if (amountToAdd > 0) {
+        const newLog = {
+          amount_added: amountToAdd,
+          date: new Date().toLocaleString(),
+        };
+        updatedHistory = [...updatedHistory, newLog];
       }
-    } catch (error) {
-      console.error('Error updating status:', error);
+
+      // Step 1: wallet_applications table update karo (fields + amount + history)
+      const updateData: any = {
+        full_name: selectedApp.full_name,
+        blood_group: selectedApp.blood_group,
+        status: selectedApp.status,
+        district: selectedApp.district,
+        state: selectedApp.state,
+        amount: newAppTotal,
+        amount_history: updatedHistory,
+      };
+
+      const { data: appUpdateResult, error: appError } = await supabase
+        .from('wallet_applications')
+        .update(updateData)
+        .eq('id', selectedApp.id)
+        .select();
+
+      console.log('wallet_applications update result:', appUpdateResult, appError);
+
+      if (appError) {
+        throw new Error(appError.message || JSON.stringify(appError));
+      }
+
+      // Step 2: agar amount add hua hai, profiles table bhi sync karo
+      if (amountToAdd > 0) {
+        console.log('selectedApp.user_id:', selectedApp.user_id);
+
+        if (!selectedApp.user_id) {
+          console.warn('SKIPPED profile update: user_id is missing on this application record.');
+          alert(
+            'Application update ho gaya, lekin profile ka amount update nahi hua kyunki is application mein user_id set nahi hai.'
+          );
+        } else {
+          const { data: profileData, error: fetchError } = await supabase
+            .from('profiles')
+            .select('amount_given')
+            .eq('id', selectedApp.user_id)
+            .single();
+
+          console.log('profiles fetch result:', profileData, fetchError);
+
+          if (fetchError) {
+            throw new Error(`Profile fetch failed: ${fetchError.message}`);
+          }
+
+          const currentProfileAmount = Number(profileData?.amount_given || 0);
+          const newProfileTotal = currentProfileAmount + amountToAdd;
+
+          const { data: profileUpdateResult, error: profileError } = await supabase
+            .from('profiles')
+            .update({ amount_given: newProfileTotal })
+            .eq('id', selectedApp.user_id)
+            .select();
+
+          console.log('profiles update result:', profileUpdateResult, profileError);
+
+          if (profileError) {
+            throw new Error(`Profile update failed: ${profileError.message}`);
+          }
+
+          if (!profileUpdateResult || profileUpdateResult.length === 0) {
+            console.warn(
+              'Profile update returned no rows. Ye RLS policy issue ho sakta hai (UPDATE permission missing on profiles table).'
+            );
+            alert(
+              'Application update ho gaya, lekin profile ka amount update nahi ho paya. Isko RLS policy issue lagta hai — Supabase mein profiles table pe UPDATE policy check karo.'
+            );
+          }
+        }
+      }
+
+      alert('Application and Wallet updated successfully!');
+      setIsEditModalOpen(false);
+      setAddAmount('');
+      fetchApplications();
+    } catch (err: any) {
+      console.error('Error updating application:', err);
+      alert(`Failed to update application: ${err.message || 'Unknown error'}`);
+    } finally {
+      setSaving(false);
     }
   };
 
-  // Filtered applications based on search
-  const filteredApplications = applications.filter((app) => {
-    const name = app.full_name || app.name || '';
-    const cardNum = app.card_number || '';
-    const phone = app.phone_number || '';
-    return name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-           cardNum.toLowerCase().includes(searchTerm.toLowerCase()) ||
-           phone.toLowerCase().includes(searchTerm.toLowerCase());
-  });
+  // Pagination calculations
+  const totalPages = Math.max(1, Math.ceil(applications.length / ITEMS_PER_PAGE));
+  const paginatedApplications = applications.slice(
+    (currentPage - 1) * ITEMS_PER_PAGE,
+    currentPage * ITEMS_PER_PAGE
+  );
+
+  const goToPage = (page: number) => {
+    if (page < 1 || page > totalPages) return;
+    setCurrentPage(page);
+  };
 
   return (
-    <div className="p-6 bg-gray-50 min-h-screen">
-      {/* Header section */}
-      <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-800">Wallet Control & Approvals</h1>
-          <p className="text-sm text-gray-500">Manage user wallet applications, KYC, and card statuses.</p>
-        </div>
-        <div className="relative w-full md:w-72">
-          <Search className="absolute left-3 top-3 text-gray-400" size={18} />
-          <input
-            type="text"
-            placeholder="Search by name, card #..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-          />
-        </div>
-      </div>
+    <div className="p-6 max-w-7xl mx-auto space-y-6">
+      <h1 className="text-2xl font-bold text-gray-900">Wallet Applications Control</h1>
 
-      {/* Table Container */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="bg-gray-50 text-gray-600 text-xs uppercase tracking-wider border-b border-gray-100">
-                <th className="py-4 px-4 font-semibold">Sr. No.</th>
-                <th className="py-4 px-4 font-semibold">Photo</th>
-                <th className="py-4 px-4 font-semibold">User Name</th>
-                <th className="py-4 px-4 font-semibold">Card Number</th>
-                <th className="py-4 px-4 font-semibold">Status</th>
-                <th className="py-4 px-4 font-semibold">Created Date</th>
-                <th className="py-4 px-4 font-semibold text-center">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100 text-sm">
-              {loading ? (
+      {loading ? (
+        <div className="text-center py-10">Loading applications...</div>
+      ) : (
+        <>
+          <div className="bg-white rounded-xl shadow border border-gray-200 overflow-hidden">
+            <table className="w-full text-left border-collapse">
+              <thead className="bg-gray-50 border-b border-gray-200 text-xs font-bold text-gray-500 uppercase">
                 <tr>
-                  <td colSpan={7} className="text-center py-8 text-gray-400">Loading applications...</td>
+                  <th className="p-4">Name</th>
+                  <th className="p-4">Status</th>
+                  <th className="p-4">District</th>
+                  <th className="p-4 text-center">Actions</th>
                 </tr>
-              ) : filteredApplications.length === 0 ? (
-                <tr>
-                  <td colSpan={7} className="text-center py-8 text-gray-400">No wallet applications found.</td>
-                </tr>
-              ) : (
-                filteredApplications.map((app, index) => {
-                  const isApproved = app.status?.toLowerCase() === 'approved' || app.status?.toLowerCase() === 'active';
-                  return (
-                    <tr key={app.id || index} className="hover:bg-gray-50/55 transition-colors">
-                      <td className="py-3 px-4 text-gray-500 font-medium">{index + 1}</td>
-                      <td className="py-3 px-4">
-                        <img 
-                          src={app.live_photo_url || app.photo_base64 || "https://via.placeholder.com/40"} 
-                          alt="User" 
-                          className="w-10 h-10 rounded-full object-cover border border-gray-200" 
-                        />
-                      </td>
-                      <td className="py-3 px-4 font-medium text-gray-800">{app.full_name || app.name || 'N/A'}</td>
-                      <td className="py-3 px-4 text-gray-600 font-mono text-xs">{app.card_number || 'Not Assigned'}</td>
-                      <td className="py-3 px-4">
-                        <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${
-                          isApproved ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-amber-50 text-amber-700 border border-amber-200'
-                        }`}>
-                          {isApproved ? <CheckCircle size={12} /> : <Clock size={12} />}
-                          {app.status || 'Pending'}
-                        </span>
-                      </td>
-                      <td className="py-3 px-4 text-gray-500 text-xs">
-                        {app.created_at ? new Date(app.created_at).toLocaleDateString() : 'N/A'}
-                      </td>
-                      <td className="py-3 px-4 text-center">
-                        <div className="flex items-center justify-center gap-2">
-                        <button 
-  onClick={() => router.push(`/dashboard/admin/wallet-control/${app.id}`)}
-  className="p-1.5 bg-indigo-50 text-indigo-600 rounded-md hover:bg-indigo-100 transition"
-  title="View Details"
->
-  <Eye size={16} />
-</button>
-                          <button 
-                            onClick={() => { setSelectedApp(app); setEditStatus(app.status || 'pending'); setIsEditModalOpen(true); }}
-                            className="p-1.5 bg-amber-50 text-amber-600 rounded-md hover:bg-amber-100 transition"
-                            title="Edit Status"
-                          >
-                            <Edit size={16} />
-                          </button>
-                          <button 
-                            onClick={() => handleDelete(app.id)}
-                            className="p-1.5 bg-red-50 text-red-600 rounded-md hover:bg-red-100 transition"
-                            title="Delete"
-                          >
-                            <Trash2 size={16} />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
+              </thead>
+              <tbody className="divide-y divide-gray-200 text-sm">
+                {paginatedApplications.map((app) => (
+                  <tr key={app.id} className="hover:bg-gray-50 transition">
+                    <td className="p-4 font-semibold text-gray-800">{app.full_name || app.name || 'N/A'}</td>
+                    <td className="p-4">
+                      <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${
+                        app.status === 'approved' ? 'bg-green-50 text-green-700' : 'bg-amber-50 text-amber-700'
+                      }`}>
+                        {app.status || 'Pending'}
+                      </span>
+                    </td>
+                    <td className="p-4 text-gray-600">{app.district || '—'}</td>
+                    <td className="p-4 flex items-center justify-center gap-2">
+                      <button 
+                        onClick={() => { 
+                          setSelectedApp(app); 
+                          setAddAmount(''); 
+                          setIsEditModalOpen(true); 
+                        }}
+                        className="p-1.5 bg-amber-50 text-amber-600 rounded-md hover:bg-amber-100 transition"
+                        title="Quick Edit"
+                      >
+                        <Edit size={16} />
+                      </button>
 
-      {/* VIEW MODAL */}
-      {isViewModalOpen && selectedApp && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-xl">
-            <div className="flex justify-between items-center p-5 border-b border-gray-100">
-              <h3 className="text-lg font-bold text-gray-800">Wallet Application & KYC Details</h3>
-              <button onClick={() => setIsViewModalOpen(false)} className="text-gray-400 hover:text-gray-600">
-                <X size={20} />
-              </button>
-            </div>
-            
-            <div className="p-6 space-y-6">
-              {/* Wallet Card Preview section */}
-              <div className="bg-gradient-to-r from-indigo-600 to-purple-600 rounded-2xl p-5 text-white shadow-md relative overflow-hidden">
-                <div className="flex justify-between items-start">
-                  <div>
-                    <p className="text-xs uppercase tracking-wider opacity-80">HealthERP Digital Wallet</p>
-                    <h4 className="text-xl font-bold mt-1">{selectedApp.full_name || selectedApp.name || 'User Name'}</h4>
-                  </div>
-                  <span className="bg-white/20 px-3 py-1 rounded-full text-xs font-medium uppercase">
-                    {selectedApp.status || 'Pending'}
-                  </span>
-                </div>
-                <div className="mt-8 flex justify-between items-end">
-                  <div>
-                    <p className="text-xs opacity-75">Card Number</p>
-                    <p className="font-mono tracking-widest text-lg">{selectedApp.card_number || 'XXXX-XXXX-XXXX'}</p>
-                  </div>
-                  <p className="text-xs opacity-75">Exp: {selectedApp.created_at ? new Date(selectedApp.created_at).getFullYear() + 3 : '2028'}</p>
-                </div>
-              </div>
+                      <button
+                        onClick={() => handleDelete(app.id)}
+                        disabled={deletingId === app.id}
+                        className="p-1.5 bg-red-50 text-red-600 rounded-md hover:bg-red-100 transition disabled:opacity-50"
+                        title="Delete Application"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
 
-              {/* Registration Details */}
-              <div>
-                <h4 className="text-sm font-semibold text-gray-700 uppercase tracking-wider mb-3">Registration Information</h4>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 bg-gray-50 p-4 rounded-xl border border-gray-100 text-sm">
-                  <div className="flex items-center gap-2 text-gray-600">
-                    <User size={16} className="text-indigo-500" />
-                    <span><strong>Name:</strong> {selectedApp.full_name || selectedApp.name || 'N/A'}</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-gray-600">
-                    <Mail size={16} className="text-indigo-500" />
-                    <span><strong>Email:</strong> {selectedApp.email || 'N/A'}</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-gray-600">
-                    <Phone size={16} className="text-indigo-500" />
-                    <span><strong>Phone:</strong> {selectedApp.phone_number || 'N/A'}</span>
-                  </div>
-                {/* Registration Details ke andar date wali line ko aise theek karein */}
-<div className="flex items-center gap-2 text-gray-600">
-  <Calendar size={16} className="text-indigo-500" />
-  <span>
-    <strong>Applied on:</strong>{' '}
-    {selectedApp.created_at ? new Date(selectedApp.created_at).toLocaleString() : 'N/A'}
-  </span>
-</div>
-                </div>
-              </div>
+                {paginatedApplications.length === 0 && (
+                  <tr>
+                    <td colSpan={4} className="p-6 text-center text-gray-500">
+                      Koi application nahi mili.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
 
-              {/* KYC Details & Documents */}
-              <div>
-                <h4 className="text-sm font-semibold text-gray-700 uppercase tracking-wider mb-3">KYC Verification Documents</h4>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                  <div className="bg-gray-50 p-4 rounded-xl border border-gray-100">
-                    <p className="text-xs font-medium text-gray-500 mb-1">PAN Card Number</p>
-                    <p className="font-mono font-bold text-gray-800">{selectedApp.pan_card || 'Not Provided'}</p>
-                  </div>
-                  <div className="bg-gray-50 p-4 rounded-xl border border-gray-100">
-                    <p className="text-xs font-medium text-gray-500 mb-1">Aadhaar / UID Number</p>
-                    <p className="font-mono font-bold text-gray-800">{selectedApp.uid_number || selectedApp.aadhar_card || 'Not Provided'}</p>
-                  </div>
-                </div>
+          {/* Pagination Controls */}
+          <div className="flex items-center justify-between px-1">
+            <p className="text-xs text-gray-500">
+              Showing {applications.length === 0 ? 0 : (currentPage - 1) * ITEMS_PER_PAGE + 1}
+              {' - '}
+              {Math.min(currentPage * ITEMS_PER_PAGE, applications.length)} of {applications.length}
+            </p>
 
-                {/* Uploaded Image previews */}
-                <div className="mt-4 grid grid-cols-2 gap-4">
-                  <div>
-                    <p className="text-xs font-medium text-gray-500 mb-2">Live Photo / Profile Image</p>
-                    <img 
-                      src={selectedApp.live_photo_url || "https://via.placeholder.com/150"} 
-                      alt="Live Photo" 
-                      className="w-full h-32 object-cover rounded-lg border border-gray-200"
-                    />
-                  </div>
-                  <div>
-                    <p className="text-xs font-medium text-gray-500 mb-2">Document Image</p>
-                    <img 
-                      src={selectedApp.document_url || selectedApp.pan_card_url || "https://via.placeholder.com/150"} 
-                      alt="Document" 
-                      className="w-full h-32 object-cover rounded-lg border border-gray-200"
-                    />
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="flex justify-end p-4 border-t border-gray-100 bg-gray-50">
-              <button 
-                onClick={() => setIsViewModalOpen(false)}
-                className="px-4 py-2 bg-gray-200 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-300 transition"
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => goToPage(currentPage - 1)}
+                disabled={currentPage === 1}
+                className="p-1.5 rounded-md border border-gray-300 text-gray-600 hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed transition"
               >
-                Close
+                <ChevronLeft size={16} />
+              </button>
+
+              <span className="text-xs font-semibold text-gray-700">
+                Page {currentPage} of {totalPages}
+              </span>
+
+              <button
+                onClick={() => goToPage(currentPage + 1)}
+                disabled={currentPage === totalPages}
+                className="p-1.5 rounded-md border border-gray-300 text-gray-600 hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed transition"
+              >
+                <ChevronRight size={16} />
               </button>
             </div>
           </div>
-        </div>
+        </>
       )}
 
-      {/* EDIT MODAL */}
+      {/* EDIT MODAL POPUP */}
       {isEditModalOpen && selectedApp && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-2xl max-w-md w-full shadow-xl p-6">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-bold text-gray-800">Edit Application Status</h3>
-              <button onClick={() => setIsEditModalOpen(false)} className="text-gray-400 hover:text-gray-600">
-                <X size={20} />
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl space-y-4">
+            <div className="flex justify-between items-center border-b pb-3">
+              <h3 className="text-base font-bold text-gray-900">Edit Application & Add Amount</h3>
+              <button onClick={() => setIsEditModalOpen(false)} className="p-1.5 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-600">
+                <X size={16} />
               </button>
             </div>
-            
-            <div className="space-y-4">
+
+            <form onSubmit={handleEditSubmit} className="space-y-4">
               <div>
-                <label className="block text-xs font-medium text-gray-600 uppercase mb-1">Applicant Name</label>
+                <label className="block text-xs font-semibold text-gray-600 mb-1">Full Name</label>
                 <input 
-                  type="text" 
-                  disabled 
-                  value={selectedApp.full_name || selectedApp.name || ''} 
-                  className="w-full px-3 py-2 bg-gray-100 border border-gray-200 rounded-lg text-sm text-gray-600"
+                  type="text"
+                  value={selectedApp.full_name || ''}
+                  onChange={(e) => setSelectedApp({ ...selectedApp, full_name: e.target.value })}
+                  className="w-full p-2.5 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500"
                 />
               </div>
 
-              <div>
-                <label className="block text-xs font-medium text-gray-600 uppercase mb-1">Update Status</label>
-                <select 
-                  value={editStatus} 
-                  onChange={(e) => setEditStatus(e.target.value)}
-                  className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                >
-                  <option value="pending">Pending</option>
-                  <option value="approved">Approved</option>
-                  <option value="rejected">Rejected</option>
-                  <option value="under_review">Under Review</option>
-                </select>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-semibold text-gray-600 mb-1">Blood Group</label>
+                  <input 
+                    type="text"
+                    value={selectedApp.blood_group || ''}
+                    onChange={(e) => setSelectedApp({ ...selectedApp, blood_group: e.target.value })}
+                    className="w-full p-2.5 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-gray-600 mb-1">Status</label>
+                  <select 
+                    value={selectedApp.status || 'pending'}
+                    onChange={(e) => setSelectedApp({ ...selectedApp, status: e.target.value })}
+                    className="w-full p-2.5 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500"
+                  >
+                    <option value="pending">Pending</option>
+                    <option value="approved">Approved</option>
+                    <option value="rejected">Rejected</option>
+                  </select>
+                </div>
               </div>
-            </div>
 
-            <div className="flex justify-end gap-3 mt-6">
-              <button 
-                onClick={() => setIsEditModalOpen(false)}
-                className="px-4 py-2 bg-gray-100 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-200 transition"
-              >
-                Cancel
-              </button>
-              <button 
-                onClick={() => handleUpdateStatus(selectedApp.id)}
-                className="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition"
-              >
-                Save Changes
-              </button>
-            </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-semibold text-gray-600 mb-1">District</label>
+                  <input 
+                    type="text"
+                    value={selectedApp.district || ''}
+                    onChange={(e) => setSelectedApp({ ...selectedApp, district: e.target.value })}
+                    className="w-full p-2.5 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-gray-600 mb-1">State</label>
+                  <input 
+                    type="text"
+                    value={selectedApp.state || ''}
+                    onChange={(e) => setSelectedApp({ ...selectedApp, state: e.target.value })}
+                    className="w-full p-2.5 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500"
+                  />
+                </div>
+              </div>
+
+              <div className="bg-indigo-50 p-3 rounded-xl border border-indigo-100 space-y-1">
+                <label className="block text-xs font-bold text-indigo-900">
+                  Add Amount to Wallet (Current Total: ₹{selectedApp.amount || 0})
+                </label>
+                <input 
+                  type="number"
+                  placeholder="Enter amount to add (e.g. 500)"
+                  value={addAmount}
+                  onChange={(e) => setAddAmount(e.target.value)}
+                  className="w-full p-2.5 border border-indigo-200 rounded-xl text-sm bg-white focus:ring-2 focus:ring-indigo-500"
+                />
+                <p className="text-[11px] text-indigo-600">Nayi amount purani amount mein automatically jud jayegi.</p>
+              </div>
+
+              <div className="flex justify-end gap-3 pt-3 border-t">
+                <button 
+                  type="button"
+                  onClick={() => setIsEditModalOpen(false)}
+                  className="px-4 py-2 bg-gray-100 text-gray-700 rounded-xl text-xs font-semibold hover:bg-gray-200"
+                >
+                  Cancel
+                </button>
+                <button 
+                  type="submit"
+                  disabled={saving}
+                  className="px-4 py-2 bg-indigo-600 text-white rounded-xl text-xs font-semibold hover:bg-indigo-700 disabled:opacity-50"
+                >
+                  {saving ? 'Saving...' : 'Save Changes'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

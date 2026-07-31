@@ -88,6 +88,20 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-8">
+      {/* 🚀 APPROVAL PENDING BANNER FOR DOCTORS */}
+      {user?.role === 'doctor' && user?.isApproved === false && (
+        <div className="bg-amber-50 border border-amber-200 text-amber-800 px-5 py-4 rounded-2xl flex items-center gap-3 shadow-sm animate-fade-in-up">
+          <div className="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center flex-shrink-0">
+            <Clock size={20} className="text-amber-600" />
+          </div>
+          <div className="flex-1">
+            <h4 className="font-semibold text-amber-900">Approval Pending</h4>
+            <p className="text-sm text-amber-700 mt-0.5">
+              Your doctor account is currently under review by our admin team. Some features and listing might be restricted until approved.
+            </p>
+          </div>
+        </div>
+      )}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-foreground">{greeting()}, {user?.fullName?.split(' ')[0] || 'Team'} 👋</h1>
@@ -128,9 +142,9 @@ export default function DashboardPage() {
             <StatCard label="Total Doctors" value={stats.totalDoctors ?? 0} Icon={Stethoscope} gradient="stat-violet" sub="Active practitioners" />
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <StatCard label="Revenue" value={`$${(stats.revenue ?? 0).toLocaleString()}`} Icon={TrendingUp} gradient="stat-emerald" sub="Total income" />
-            <StatCard label="Expenses" value={`$${(stats.expenses ?? 0).toLocaleString()}`} Icon={TrendingDown} gradient="stat-rose" sub="Total outflow" />
-            <StatCard label="Net Profit" value={`$${(stats.profit ?? 0).toLocaleString()}`} Icon={DollarSign} gradient="stat-cyan" sub="Revenue - Expenses" />
+            <StatCard label="Revenue" value={`₹${(stats.revenue ?? 0).toLocaleString()}`} Icon={TrendingUp} gradient="stat-emerald" sub="Total income" />
+            <StatCard label="Expenses" value={`₹${(stats.expenses ?? 0).toLocaleString()}`} Icon={TrendingDown} gradient="stat-rose" sub="Total outflow" />
+            <StatCard label="Net Profit" value={`₹${(stats.profit ?? 0).toLocaleString()}`} Icon={DollarSign} gradient="stat-cyan" sub="Revenue - Expenses" />
           </div>
         </>
       )}

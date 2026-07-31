@@ -38,22 +38,23 @@ export default function AdminWalletViewPage() {
   const [rejectModalOpen, setRejectModalOpen] = useState(false);
   const [rejectionReason, setRejectionReason] = useState('');
 
+  // Fetch Details via API Route (Bypasses 406 & RLS issues)
   useEffect(() => {
     if (!id) return;
 
     const fetchDetails = async () => {
       setLoading(true);
       try {
-        const { data, error } = await supabase
-          .from('wallet_applications')
-          .select('*')
-          .eq('id', id)
-          .single();
+        const res = await fetch(`/api/admin/users/${id}`);
+        const result = await res.json();
 
-        if (error) throw error;
-        setApplication(data);
-      } catch (err) {
-        console.error('Error fetching details:', err);
+        if (!res.ok) {
+          throw new Error(result.error || 'Failed to fetch application details');
+        }
+
+        setApplication(result.data);
+      } catch (err: any) {
+        console.error('Error fetching details:', err.message);
       } finally {
         setLoading(false);
       }
@@ -62,26 +63,33 @@ export default function AdminWalletViewPage() {
     fetchDetails();
   }, [id]);
 
+  // Status Update via API Route (Saves directly to 'status' column as requested)
   const handleStatusUpdate = async (newStatus: string, reason: string = '') => {
     setUpdating(true);
     try {
-      const updateData: any = { status: newStatus };
+      const updateData: any = { 
+        status: newStatus // Updated directly to the 'status' column
+      };
+      
       if (newStatus === 'rejected') {
         updateData.rejection_reason = reason;
       }
 
-      const { error } = await supabase
-        .from('wallet_applications')
-        .update(updateData)
-        .eq('id', id);
+      const res = await fetch(`/api/admin/users/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updateData),
+      });
 
-      if (error) throw error;
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.error || 'Failed to update status');
+
       setApplication({ ...application, ...updateData });
       setRejectModalOpen(false);
       setRejectionReason('');
       alert(`Application successfully marked as ${newStatus}!`);
-    } catch (err) {
-      console.error('Error updating status:', err);
+    } catch (err: any) {
+      console.error('Error updating status:', err.message);
       alert('Failed to update status.');
     } finally {
       setUpdating(false);
@@ -178,7 +186,7 @@ export default function AdminWalletViewPage() {
           onClick={() => router.back()}
           className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-xl hover:bg-gray-100 transition shadow-sm"
         >
-          <ArrowLeft size={16} /> Back to Wallet Control
+          <ArrowLeft size={16} /> Back to Dashboard
         </button>
 
         <div className="flex items-center gap-3 flex-wrap">
@@ -383,7 +391,7 @@ export default function AdminWalletViewPage() {
 
       {/* REJECTION REASON MODAL POPUP */}
       {rejectModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fadeIn">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
           <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
             <div className="flex justify-between items-center">
               <h3 className="text-base font-bold text-gray-900 flex items-center gap-2">
@@ -425,7 +433,7 @@ export default function AdminWalletViewPage() {
 
       {/* LIGHTBOX DOCUMENT PREVIEW MODAL */}
       {modalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 animate-fadeIn">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
           <div className="relative bg-white rounded-2xl max-w-2xl w-full p-4 shadow-2xl flex flex-col items-center">
             <button onClick={() => setModalOpen(false)} className="absolute top-3 right-3 p-2 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-700 transition">
               <X size={18} />

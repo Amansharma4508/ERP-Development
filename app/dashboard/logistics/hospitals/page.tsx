@@ -6,6 +6,7 @@ import {
   Building2, Plus, X, AlertCircle, CheckCircle, XCircle, Pencil, Trash2, Search, Eye, Download, MapPin, Phone, ChevronLeft, ChevronRight, Stethoscope 
 } from 'lucide-react';
 import HospitalModal from '@/components/HospitalModal';
+import HospitalEditModal from '@/components/HospitalEditModal';
 
 interface DoctorInfo {
   name: string;
@@ -376,12 +377,25 @@ export default function HospitalNetworkPage() {
         </div>
       </div>
 
-      <HospitalModal 
-        isOpen={!!viewHospital} 
-        onClose={() => setViewHospital(null)} 
-        hospital={viewHospital} 
-        onExport={handleExport}
-      />
-    </div>
+  {/* View Modal */}
+  <HospitalModal 
+    isOpen={!!viewHospital} 
+    onClose={() => setViewHospital(null)} 
+    hospital={viewHospital} 
+    onExport={handleExport}
+  />
+
+  {/* Edit / Add Modal - Yahan teeno props pass kar dein taaki empty na aaye */}
+  {showAdd && (
+    <HospitalEditModal 
+      isOpen={showAdd}
+      onClose={() => setShowAdd(false)}
+      onSave={handleSaveHospital}
+      editData={editVendor}
+      initialData={editVendor}
+      hospital={editVendor}
+    />
+  )}
+</div>
   );
 }

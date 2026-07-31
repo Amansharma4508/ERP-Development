@@ -1,23 +1,101 @@
 import { NextRequest } from 'next/server';
-import { appointments, doctors, wallets, walletTransactions, users } from '@/lib/store';
+import { supabaseAdmin } from '@/lib/supabase/server';
 import { successResponse, errorResponse, toJson } from '@/lib/api-utils';
-import { verifyToken } from '@/lib/auth';
+import { verifyToken, getTokenFromRequest } from '@/lib/auth';
 
-// GET /api/appointments - list appointments for current user
+function mapAppointment(row: any) {
+  return {
+    id: row.id,
+    patientId: row.patient_id,
+    patientName: row.patient?.full_name ?? 'Unknown',
+    patientPhone: row.patient?.phone_number ?? null,
+    doctorId: row.doctor_id,
+    doctorName: row.doctor?.full_name ?? 'Unknown',
+    specialization: row.specialization,
+    date: row.appointment_date,
+    time: row.appointment_time,
+    status: row.status,
+    notes: row.notes,
+    consultationFee: Number(row.consultation_fee),
+    createdAt: row.created_at,
+  };
+}
+
+// GET /api/appointments
 export async function GET(request: NextRequest) {
-  const token = request.headers.get('authorization')?.split(' ')[1];
+  const token = getTokenFromRequest(request);
   if (!token) return toJson(errorResponse('Unauthorized', 401));
   const payload = verifyToken(token);
   if (!payload) return toJson(errorResponse('Invalid token', 401));
 
-  let result;
+  const userId = payload.userId || payload.id;
+  const { searchParams } = new URL(request.url);
+  const status = searchParams.get('status');
+  const date = searchParams.get('date');
+  const patientName = searchParams.get('patientName');
+  const view = searchParams.get('view');
+
+  let query = supabaseAdmin
+    .from('appointments')
+    .select(`
+      id, patient_id, doctor_id, specialization, appointment_date, appointment_time,
+      status, notes, consultation_fee, created_at,
+      patient:profiles!appointments_patient_id_fkey ( full_name, email, phone_number ),
+      doctor:profiles!appointments_doctor_id_fkey ( full_name )
+    `)
+    .order('appointment_date', { ascending: false })
+    .order('appointment_time', { ascending: false });
+
   if (payload.role === 'doctor') {
-    const doc = doctors.find((d) => d.userId === payload.userId);
-    result = appointments.filter((a) => a.doctorId === doc?.id);
+    query = query.eq('doctor_id', userId);
   } else if (payload.role === 'admin') {
-    result = appointments;
+    // sees all
   } else {
-    result = appointments.filter((a) => a.patientId === payload.userId);
+    query = query.eq('patient_id', userId);
+  }
+
+  if (status) query = query.eq('status', status);
+  if (date) query = query.eq('appointment_date', date);
+
+  const today = new Date().toISOString().split('T')[0];
+  if (view === 'upcoming') {
+    query = query.gte('appointment_date', today).in('status', ['pending', 'confirmed']);
+  } else if (view === 'past') {
+    query = query.or(`appointment_date.lt.${today},status.eq.completed`);
+  } else if (view === 'cancelled') {
+    query = query.in('status', ['cancelled', 'rejected']);
+  }
+
+  const { data, error } = await query;
+  if (error) return toJson(errorResponse(error.message, 500));
+
+  // ── AUTO-CANCEL: agar pending appointment ka date+time nikal chuka hai
+  // aur doctor ne confirm/reject nahi kiya, to usse cancelled kar do ──
+  const now = new Date();
+  const expiredPendingIds: string[] = [];
+
+  (data ?? []).forEach((row: any) => {
+    if (row.status === 'pending') {
+      const apptDateTime = new Date(`${row.appointment_date}T${row.appointment_time}`);
+      if (apptDateTime < now) {
+        expiredPendingIds.push(row.id);
+        row.status = 'cancelled'; // isi response mein turant reflect ho jaye
+      }
+    }
+  });
+
+  if (expiredPendingIds.length > 0) {
+    await supabaseAdmin
+      .from('appointments')
+      .update({ status: 'cancelled' })
+      .in('id', expiredPendingIds);
+  }
+
+  let result = (data ?? []).map(mapAppointment);
+
+  if (patientName) {
+    const q = patientName.toLowerCase();
+    result = result.filter((a) => a.patientName.toLowerCase().includes(q));
   }
 
   return toJson(successResponse(result));
@@ -25,11 +103,12 @@ export async function GET(request: NextRequest) {
 
 // POST /api/appointments - book a new appointment
 export async function POST(request: NextRequest) {
-  const token = request.headers.get('authorization')?.split(' ')[1];
+  const token = getTokenFromRequest(request);
   if (!token) return toJson(errorResponse('Unauthorized', 401));
   const payload = verifyToken(token);
   if (!payload) return toJson(errorResponse('Invalid token', 401));
 
+  const userId = payload.userId || payload.id;
   const body = await request.json();
   const { doctorId, date, time, notes } = body;
 
@@ -37,44 +116,35 @@ export async function POST(request: NextRequest) {
     return toJson(errorResponse('doctorId, date, and time are required', 400));
   }
 
-  const doctor = doctors.find((d) => d.id === doctorId);
-  if (!doctor) return toJson(errorResponse('Doctor not found', 404));
+  const { data: doctor, error: doctorErr } = await supabaseAdmin
+    .from('doctor_profiles')
+    .select('id, specialization, consultation_fee')
+    .eq('id', doctorId)
+    .single();
 
-  // Check wallet balance
-  const wallet = wallets.find((w) => w.userId === payload.userId);
-  if (!wallet || wallet.balance < doctor.consultationFee) {
-    return toJson(errorResponse('Insufficient wallet balance', 400));
-  }
+  if (doctorErr || !doctor) return toJson(errorResponse('Doctor not found', 404));
 
-  // Deduct fee
-  wallet.balance -= doctor.consultationFee;
-  const txId = `wt${Date.now()}`;
-  walletTransactions.push({
-    id: txId,
-    userId: payload.userId,
-    type: 'debit',
-    amount: doctor.consultationFee,
-    description: `${doctor.fullName} - ${doctor.specialization}`,
-    category: 'Consultation',
-    date: new Date().toISOString().split('T')[0],
-  });
+  const { data: inserted, error: insertErr } = await supabaseAdmin
+    .from('appointments')
+    .insert({
+      patient_id: userId,
+      doctor_id: doctorId,
+      specialization: doctor.specialization,
+      appointment_date: date,
+      appointment_time: time,
+      status: 'pending',
+      notes: notes || '',
+      consultation_fee: doctor.consultation_fee,
+    })
+    .select(`
+      id, patient_id, doctor_id, specialization, appointment_date, appointment_time,
+      status, notes, consultation_fee, created_at,
+      patient:profiles!appointments_patient_id_fkey ( full_name, phone_number ),
+      doctor:profiles!appointments_doctor_id_fkey ( full_name )
+    `)
+    .single();
 
-  const patient = users.find((u) => u.id === payload.userId);
-  const newAppointment = {
-    id: `a${Date.now()}`,
-    patientId: payload.userId,
-    patientName: patient?.fullName ?? payload.email.split('@')[0],
-    doctorId,
-    doctorName: doctor.fullName,
-    specialization: doctor.specialization,
-    date,
-    time,
-    status: 'pending' as const,
-    notes: notes || '',
-    consultationFee: doctor.consultationFee,
-    createdAt: new Date().toISOString().split('T')[0],
-  };
+  if (insertErr) return toJson(errorResponse(insertErr.message, 500));
 
-  appointments.push(newAppointment);
-  return toJson(successResponse(newAppointment, 201));
+  return toJson(successResponse(mapAppointment(inserted), 201));
 }

@@ -3,14 +3,15 @@
 import { useAuth } from '@/lib/auth-context';
 import { useEffect, useState, useCallback } from 'react';
 import {
-  CalendarDays, Clock, CheckCircle, XCircle, Plus, DollarSign,
-  Ban, Search, Target,
+  CalendarDays, Clock, CheckCircle, XCircle, DollarSign,
+  Check, X, Target, Search, Phone, Inbox,
 } from 'lucide-react';
 
 interface Appointment {
   id: string;
-  doctorId: string;
-  doctorName: string;
+  patientId: string;
+  patientName: string;
+  patientPhone?: string | null;
   specialization: string;
   date: string;
   time: string;
@@ -20,12 +21,12 @@ interface Appointment {
   createdAt: string;
 }
 
-export default function MyAppointmentsPage() {
+export default function DoctorAppointmentsPage() {
   const { token } = useAuth();
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const [activeTab, setActiveTab] = useState<'all' | 'upcoming' | 'pending' | 'completed' | 'cancelled'>('all');
+  const [activeTab, setActiveTab] = useState<'pendingUpcoming' | 'completed' | 'cancelled' | 'all'>('pendingUpcoming');
   const [searchQuery, setSearchQuery] = useState('');
   const [filterDate, setFilterDate] = useState('');
 
@@ -61,19 +62,30 @@ export default function MyAppointmentsPage() {
     fetchAppointments();
   }, [fetchAppointments]);
 
-  const handleCancel = async (id: string) => {
-    setActionLoading(id);
+ const handleAction = async (id: string, status: string) => {
+    setActionLoading(id + status);
     try {
       const res = await fetch(`/api/appointments/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ status: 'cancelled' }),
+        body: JSON.stringify({ status }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Cancellation failed');
+      if (!res.ok) {
+        if (res.status === 409) {
+          showToast(data.error, 'error');
+          fetchAppointments(); // list refresh karo taaki latest status dikhe
+          return;
+        }
+        throw new Error(data.error || 'Action failed');
+      }
 
       setAppointments(prev => prev.map(a => (a.id === id ? data.data : a)));
-      showToast('Appointment cancelled.');
+      showToast(
+        status === 'confirmed' ? 'Appointment confirmed.' :
+        status === 'rejected' ? 'Appointment rejected.' :
+        'Marked as completed.'
+      );
     } catch (err: any) {
       showToast(err.message, 'error');
     } finally {
@@ -81,18 +93,18 @@ export default function MyAppointmentsPage() {
     }
   };
 
+  // Pending/confirmed dono ek hi combined tab mein dikhte hain.
+  // Note: jo pending appointment ka time nikal chuka hota hai wo backend
+  // (/api/appointments GET) khud-ba-khud 'cancelled' mark kar deta hai,
+  // isliye ye list hamesha sirf "genuinely actionable" items dikhati hai.
   const filteredAppointments = appointments.filter(appt => {
-    if (activeTab === 'pending' && appt.status !== 'pending') return false;
+    if (activeTab === 'pendingUpcoming' && appt.status !== 'pending' && appt.status !== 'confirmed') return false;
     if (activeTab === 'completed' && appt.status !== 'completed') return false;
     if (activeTab === 'cancelled' && appt.status !== 'cancelled' && appt.status !== 'rejected') return false;
-    if (activeTab === 'upcoming') {
-      const isUpcoming = appt.status === 'confirmed' && new Date(appt.date) >= new Date(new Date().toDateString());
-      if (!isUpcoming) return false;
-    }
 
     if (searchQuery.trim() !== '') {
       const q = searchQuery.toLowerCase();
-      if (!appt.doctorName?.toLowerCase().includes(q)) return false;
+      if (!appt.patientName?.toLowerCase().includes(q)) return false;
     }
 
     if (filterDate && appt.date !== filterDate) return false;
@@ -100,19 +112,27 @@ export default function MyAppointmentsPage() {
     return true;
   });
 
+  // Pending wale sabse upar dikhein (action lene wale), phir confirmed
+  const sortedAppointments = [...filteredAppointments].sort((a, b) => {
+    if (activeTab === 'pendingUpcoming') {
+      if (a.status === 'pending' && b.status !== 'pending') return -1;
+      if (a.status !== 'pending' && b.status === 'pending') return 1;
+    }
+    return 0;
+  });
+
   const tabs = [
-    { key: 'all', label: 'All' },
-    { key: 'upcoming', label: 'Upcoming' },
-    { key: 'pending', label: 'Pending' },
+    { key: 'pendingUpcoming', label: 'Pending / Upcoming' },
     { key: 'completed', label: 'Completed' },
-    { key: 'cancelled', label: 'Cancelled' },
+    { key: 'cancelled', label: 'Cancelled / Rejected' },
+    { key: 'all', label: 'All History' },
   ];
 
   const summaryCards = [
-    { label: 'Total', count: appointments.length, cls: 'bg-indigo-50 text-indigo-700', Icon: CalendarDays },
-    { label: 'Pending', count: appointments.filter(a => a.status === 'pending').length, cls: 'bg-amber-50 text-amber-700', Icon: Clock },
-    { label: 'Confirmed', count: appointments.filter(a => a.status === 'confirmed').length, cls: 'bg-emerald-50 text-emerald-700', Icon: CheckCircle },
+    { label: 'Pending / Upcoming', count: appointments.filter(a => a.status === 'pending' || a.status === 'confirmed').length, cls: 'bg-amber-50 text-amber-700', Icon: Inbox },
     { label: 'Completed', count: appointments.filter(a => a.status === 'completed').length, cls: 'bg-blue-50 text-blue-700', Icon: Target },
+    { label: 'Cancelled / Rejected', count: appointments.filter(a => a.status === 'cancelled' || a.status === 'rejected').length, cls: 'bg-rose-50 text-rose-700', Icon: XCircle },
+    { label: 'Total', count: appointments.length, cls: 'bg-indigo-50 text-indigo-700', Icon: CalendarDays },
   ];
 
   const STATUS_STYLE: Record<string, string> = {
@@ -124,11 +144,11 @@ export default function MyAppointmentsPage() {
   };
 
   const STATUS_HELP: Record<string, string> = {
-    pending: 'Waiting for doctor to confirm',
-    confirmed: 'Doctor has confirmed this appointment',
+    pending: 'Awaiting your response — accept or reject before the slot passes',
+    confirmed: 'Confirmed — will auto-move to Completed after the visit',
     completed: 'Consultation completed',
-    cancelled: 'You cancelled this appointment',
-    rejected: 'Doctor was unable to accept this slot',
+    cancelled: 'Cancelled (patient cancelled, or slot expired without your response)',
+    rejected: 'You rejected this request',
   };
 
   return (
@@ -139,17 +159,11 @@ export default function MyAppointmentsPage() {
         </div>
       )}
 
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">My Appointments</h1>
-          <p className="text-muted-foreground text-sm mt-1">Track your booked medical consultations and history.</p>
-        </div>
-        <a
-          href="/dashboard/doctors"
-          className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-medium text-sm transition shadow-sm"
-        >
-          <Plus size={16} /> Book New Appointment
-        </a>
+      <div>
+        <h1 className="text-2xl font-bold text-foreground">Appointment Requests</h1>
+        <p className="text-muted-foreground text-sm mt-1">
+          Review incoming consultation requests and manage your patient schedule.
+        </p>
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -183,7 +197,7 @@ export default function MyAppointmentsPage() {
               <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
               <input
                 type="text"
-                placeholder="Search doctor name..."
+                placeholder="Search patient name..."
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
                 className="w-full pl-9 pr-3 py-2 rounded-xl border border-border bg-muted text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring"
@@ -206,15 +220,14 @@ export default function MyAppointmentsPage() {
 
       {loading ? (
         <div className="space-y-3">{[...Array(3)].map((_, i) => <div key={i} className="animate-pulse bg-muted h-24 rounded-2xl" />)}</div>
-      ) : filteredAppointments.length === 0 ? (
+      ) : sortedAppointments.length === 0 ? (
         <div className="text-center py-16 bg-card rounded-2xl border border-border">
           <CalendarDays size={48} className="mx-auto mb-3 opacity-20 text-muted-foreground" />
-          <p className="font-semibold text-foreground">No appointments found</p>
-          <p className="text-sm text-muted-foreground mt-1">You have no appointments matching this filter.</p>
+          <p className="font-semibold text-foreground">No consultation requests match this filter.</p>
         </div>
       ) : (
         <div className="space-y-3">
-          {filteredAppointments.map(appt => (
+          {sortedAppointments.map(appt => (
             <div key={appt.id} className="bg-card border border-border rounded-2xl p-5 flex flex-col sm:flex-row sm:items-center gap-4 hover:border-indigo-200 transition shadow-sm">
               <div className="flex items-start gap-4 flex-1">
                 <div className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 bg-indigo-50 text-indigo-600">
@@ -222,7 +235,7 @@ export default function MyAppointmentsPage() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <p className="font-semibold text-foreground text-base">Dr. {appt.doctorName}</p>
+                    <p className="font-semibold text-foreground text-base">{appt.patientName}</p>
                     <span className={`text-xs font-semibold px-2.5 py-0.5 rounded-full capitalize ${STATUS_STYLE[appt.status] || 'bg-gray-100 text-gray-800'}`}>
                       {appt.status}
                     </span>
@@ -232,23 +245,44 @@ export default function MyAppointmentsPage() {
                     <span className="flex items-center gap-1"><CalendarDays size={13} /> {appt.date}</span>
                     <span className="flex items-center gap-1"><Clock size={13} /> {appt.time}</span>
                     <span className="flex items-center gap-1"><DollarSign size={13} /> ${appt.consultationFee}</span>
+                    {appt.patientPhone && (
+                      <span className="flex items-center gap-1"><Phone size={13} /> {appt.patientPhone}</span>
+                    )}
                   </div>
                   <p className="text-xs text-muted-foreground mt-1.5">{STATUS_HELP[appt.status]}</p>
                   {appt.notes && <p className="text-xs text-muted-foreground mt-1 italic">"{appt.notes}"</p>}
                 </div>
               </div>
 
-              {(appt.status === 'pending' || appt.status === 'confirmed') && (
-                <div className="flex gap-2 flex-shrink-0">
+              <div className="flex gap-2 flex-shrink-0 flex-wrap">
+                {appt.status === 'pending' && (
+                  <>
+                    <button
+                      onClick={() => handleAction(appt.id, 'confirmed')}
+                      disabled={!!actionLoading}
+                      className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white text-sm font-medium transition disabled:opacity-50 shadow-sm"
+                    >
+                      <Check size={14} /> Accept
+                    </button>
+                    <button
+                      onClick={() => handleAction(appt.id, 'rejected')}
+                      disabled={!!actionLoading}
+                      className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-red-500 hover:bg-red-600 text-white text-sm font-medium transition disabled:opacity-50 shadow-sm"
+                    >
+                      <X size={14} /> Reject
+                    </button>
+                  </>
+                )}
+                {appt.status === 'confirmed' && (
                   <button
-                    onClick={() => handleCancel(appt.id)}
+                    onClick={() => handleAction(appt.id, 'completed')}
                     disabled={!!actionLoading}
-                    className="flex items-center gap-1.5 px-4 py-2 rounded-xl border border-red-300 text-red-600 hover:bg-red-50 text-sm font-medium transition disabled:opacity-50"
+                    className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-blue-500 hover:bg-blue-600 text-white text-sm font-medium transition disabled:opacity-50 shadow-sm"
                   >
-                    <Ban size={14} /> Cancel Booking
+                    <Target size={14} /> Mark Complete
                   </button>
-                </div>
-              )}
+                )}
+              </div>
             </div>
           ))}
         </div>

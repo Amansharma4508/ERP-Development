@@ -41,17 +41,18 @@ export function generateToken(payload: TokenPayload): string {
 
 export function verifyToken(token: string): TokenPayload | null {
   try {
-    
-    const decoded = jwt.decode(token) as TokenPayload;
-    
-    if (!decoded) {
-      console.error('[v0] Token decoding failed: Result is null');
+    // jwt.verify signature check karta hai + expiry bhi validate karta hai
+    const decoded = jwt.verify(token, JWT_SECRET) as TokenPayload;
+
+    if (!decoded || !decoded.role) {
+      console.error('[v0] Token verification failed: missing role in payload');
       return null;
     }
-    
+
     return decoded;
   } catch (error: any) {
-    console.error('[v0] Token verification error:', error);
+    // jwt.verify throw karta hai agar token expired/invalid/tampered ho
+    console.error('[v0] Token verification error:', error.message);
     return null;
   }
 }

@@ -222,14 +222,10 @@ export default function LoginPage() {
   const [error, setError]       = useState('');
   const [loading, setLoading]   = useState(false);
 
-  const handleRedirect = (user: User, walletOnboardingStatus?: string) => {
-    // 1. Approval Gate Check
-    if (NEEDS_APPROVAL.includes(user.role) && !user.isApproved) {
-      router.push('/pending-approval');
-      return;
-    }
+const handleRedirect = (user: User, walletOnboardingStatus?: string) => {
+    // 🛑 APPROVAL GATE CHECK HATA DIYA GAYA HAI (Ab koi pending screen par nahi jayega)
 
-    // 2. Role-Based Explicit Routing
+    // Role-Based Dynamic Routing
     const role = user.role?.toLowerCase();
 
     switch (role) {
@@ -237,7 +233,7 @@ export default function LoginPage() {
         router.push('/dashboard');
         break;
       case 'doctor':
-        router.push('/dashboard/doctor');
+        router.push('/dashboard'); // 👈 Doctor seedha yahan jayega
         break;
       case 'logistics':
         router.push('/dashboard/logistics');

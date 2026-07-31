@@ -1,92 +1,81 @@
-import { NextRequest } from 'next/server';
+import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { successResponse, errorResponse, toJson } from '@/lib/api-utils';
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+const supabaseServiceKey = process.env.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-async function requireAdmin(request: NextRequest) {
-  return true;
-}
-
-// PATCH /api/admin/users/[id] — edit name, email, phone, status, amount
-export async function PATCH(request: NextRequest, context: { params: Promise<{ id: string }> }) {
+export async function GET(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
   try {
-    if (!(await requireAdmin(request))) {
-      return toJson(errorResponse('Unauthorized', 401));
+    // Next.js ke naye rules ke mutabiq params ko await karna zaroori hai
+    const resolvedParams = await params;
+    const id = resolvedParams.id;
+
+    // 1. Pehle wallet_applications se main record fetch karein
+    const { data: walletApp, error: walletError } = await supabase
+      .from('wallet_applications')
+      .select('*')
+      .eq('user_id', id)
+      .maybeSingle();
+
+    if (walletError) {
+      return NextResponse.json({ error: walletError.message }, { status: 400 });
     }
 
-    const { id } = await context.params;
-    const body = await request.json();
-    const { fullName, email, phoneNumber, isBlocked, amountGiven } = body;
+    if (!walletApp) {
+      return NextResponse.json({ error: 'Application not found in database' }, { status: 404 });
+    }
 
-    // Update profile fields (name, phone, status, amount)
-    const profileUpdates: Record<string, any> = {};
-    if (fullName !== undefined) profileUpdates.full_name = fullName;
-    if (phoneNumber !== undefined) profileUpdates.phone_number = phoneNumber;
-    if (isBlocked !== undefined) profileUpdates.is_blocked = isBlocked;
-    if (email !== undefined) profileUpdates.email = email; // keep profiles.email in sync too
-    if (amountGiven !== undefined) profileUpdates.amount_given = Number(amountGiven); // ✅ Added amount_given update
-
-    if (Object.keys(profileUpdates).length > 0) {
-      const { error: profileError } = await supabase
+    // 2. Agar user_id maujood hai, toh profiles table se alag query karke data le aayein
+    let profileData = {};
+    if (walletApp.user_id) {
+      const { data: profile, error: profileError } = await supabase
         .from('profiles')
-        .update(profileUpdates)
-        .eq('id', id);
+        .select('*')
+        .eq('id', walletApp.user_id)
+        .maybeSingle();
 
-      if (profileError) {
-        console.error('🔴 Profile update failed:', profileError.message);
-        return toJson(errorResponse('Failed to update profile', 500));
+      if (!profileError && profile) {
+        profileData = profile;
       }
     }
 
-    // Email also needs updating in Supabase Auth (source of truth for login)
-    if (email !== undefined) {
-      const { error: authError } = await supabase.auth.admin.updateUserById(id, { email });
-      if (authError) {
-        console.error('🔴 Email update failed:', authError.message);
-        return toJson(errorResponse(authError.message, 400));
-      }
-    }
+    // 3. Dono data ko combine karke frontend ko bhej dein
+    const combinedData = {
+      ...walletApp,
+      profiles: profileData,
+    };
 
-    return toJson(successResponse({ updated: true }, 200));
-  } catch (error: any) {
-    console.error('🚨 Unexpected error (PATCH user):', error);
-    return toJson(errorResponse('Something went wrong', 500));
+    return NextResponse.json({ data: combinedData }, { status: 200 });
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message || 'Internal Server Error' }, { status: 500 });
   }
 }
 
-// DELETE /api/admin/users/[id] — remove a patient account entirely
-export async function DELETE(request: NextRequest, context: { params: Promise<{ id: string }> }) {
+export async function PATCH(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
   try {
-    if (!(await requireAdmin(request))) {
-      return toJson(errorResponse('Unauthorized', 401));
+    const resolvedParams = await params;
+    const id = resolvedParams.id;
+    const body = await request.json();
+
+    // Agar URL wala id user_id hai, toh yahan .eq('user_id', id) karein
+    const { error } = await supabase
+      .from('wallet_applications')
+      .update(body)
+      .eq('user_id', id); // Yah agar table ki primary key 'id' hai toh .eq('id', id) hi rehne dein
+
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 400 });
     }
 
-    const { id } = await context.params;
-
-    const { error: profileError } = await supabase.from('profiles').delete().eq('id', id);
-    if (profileError) {
-      console.error('🔴 Profile delete failed:', profileError.message);
-      return toJson(errorResponse('Failed to delete profile', 500));
-    }
-
-    const { error: authError } = await supabase.auth.admin.deleteUser(id);
-    if (authError) {
-      const alreadyGone =
-        authError.message?.toLowerCase().includes('not found') || authError.status === 404;
-      if (!alreadyGone) {
-        console.error('🔴 Auth user delete failed:', authError.message);
-        return toJson(errorResponse('Failed to delete auth user', 500));
-      }
-      console.warn('⚠️ Auth user was already missing (orphaned profile) — treating as deleted.');
-    }
-
-    return toJson(successResponse({ deleted: true }, 200));
-  } catch (error: any) {
-    console.error('🚨 Unexpected error (DELETE user):', error);
-    return toJson(errorResponse('Something went wrong', 500));
+    return NextResponse.json({ success: true }, { status: 200 });
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message || 'Internal Server Error' }, { status: 500 });
   }
 }

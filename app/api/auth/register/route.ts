@@ -15,21 +15,17 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     let { email, password, fullName, phone, role = 'user' } = body;
 
-    // Validation update to include phone check if required
     if (!email || !password || !fullName || !phone) {
       return toJson(errorResponse('All fields including phone number are required', 400));
     }
 
-    if (!ALLOWED_SELF_REGISTER_ROLES.includes(role)) {
-      console.warn(`⚠️ Blocked attempt to self-register with disallowed role: ${role}`);
-      role = 'user';
-    }
-
+    const NEEDS_APPROVAL = ['doctor', 'logistics'];
+    // Check karein ki role ko approval chahiye ya nahi
     const isApproved = !NEEDS_APPROVAL.includes(role);
 
     console.log("📝 Registration attempt for:", email, "role:", role);
 
-    // Step 1: Create Auth User (Added phone to user_metadata)
+    // Step 1: Create Auth User
     const { data: authData, error: authError } = await supabase.auth.admin.createUser({
       email,
       password,
@@ -39,7 +35,7 @@ export async function POST(request: NextRequest) {
 
     if (authError) {
       console.error("❌ Auth Error:", authError);
-      if (authError.code === 'email_exists') {
+      if (authError.code === 'email_exists' || authError.message.includes('already registered')) {
         return toJson(errorResponse('A user with this email already exists', 409));
       }
       return toJson(errorResponse(authError.message, 400));
@@ -49,18 +45,24 @@ export async function POST(request: NextRequest) {
       return toJson(errorResponse('Failed to create user', 500));
     }
 
+    // Baaki ka code waisa hi rahega...
+
     console.log("✅ Auth user created with ID:", authData.user.id);
 
-    // Step 2: Create Profile (Added phone column insertion)
+    // Step 2: Create Profile (Sirf 'user' ke liye 35000, baki roles ke liye 0)
+    const initialAmountGiven = (role === 'user') ? 35000 : 0;
+
     const { data: profileData, error: profileError } = await supabase
       .from('profiles')
       .upsert({
         id: authData.user.id,
         full_name: fullName,
         email: email,
-        phone_number: phone, // ✅ Ab yeh safely save ya update ho jayega
+        phone_number: phone,
         account_type: role,
         is_approved: isApproved,
+        amount_given: initialAmountGiven, // 👈 Yahan update kiya gaya hai
+        amount_used: 0,                   // 👈 Zero initialize kiya gaya hai
       }, { onConflict: 'id' })
       .select();
 
@@ -77,6 +79,27 @@ export async function POST(request: NextRequest) {
     }
 
     console.log("✅ Profile created successfully!");
+
+    // Step 2.5: Agar role 'doctor' hai toh doctor_profiles table mein initial blank/default row create karein
+    if (role === 'doctor') {
+      const { error: doctorProfileError } = await supabase
+        .from('doctor_profiles')
+        .upsert({
+          id: authData.user.id,
+          specialization: 'General Practice',
+          license_no: 'PENDING',
+          experience_years: 0,
+          consultation_fee: 0,
+          is_approved: false,
+          is_blocked: false,
+        }, { onConflict: 'id' });
+
+      if (doctorProfileError) {
+        console.error("🔴 Doctor Profile Initial Insertion Failed:", doctorProfileError);
+      } else {
+        console.log("✅ Initial doctor profile created successfully!");
+      }
+    }
 
     // Step 3: Sign the new user in immediately
     const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
