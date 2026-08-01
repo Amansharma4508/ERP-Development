@@ -1,6 +1,7 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 
 export interface User {
   id: string;
@@ -8,7 +9,7 @@ export interface User {
   fullName: string;
   phone?: string;
   role: 'user' | 'doctor' | 'admin' | 'logistics' | 'wallet_user';
-  isApproved: boolean; // false for doctor/logistics until admin approves
+  isApproved: boolean;
 }
 
 type WalletOnboardingStatus = 'pending' | 'in-progress' | 'approved' | 'none';
@@ -40,7 +41,8 @@ const readWalletOnboardingStatus = (userId?: string | null): WalletOnboardingSta
 };
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  // Lazy initial state se token aur user ko direct localStorage se uthaya taaki pehli render mein hi token available rahe
+  const router = useRouter();
+
   const [user, setUser] = useState<User | null>(() => {
     if (typeof window === 'undefined') return null;
     try {
@@ -71,6 +73,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return 'none';
   });
 
+  const logout = useCallback(() => {
+    setUser(null);
+    setToken(null);
+    setWalletOnboardingStatusState('none');
+    localStorage.removeItem('erp_token');
+    localStorage.removeItem('erp_user');
+    router.push('/login');
+  }, [router]);
+
   const persistWalletOnboardingStatus = (userId: string, status: WalletOnboardingStatus) => {
     setWalletOnboardingStatusState(status);
     localStorage.setItem(getWalletStatusStorageKey(userId), status);
@@ -95,7 +106,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         fetch('/api/wallet-onboarding/status', {
           headers: { Authorization: `Bearer ${storedToken}` },
         })
-          .then((res) => res.json())
+          .then((res) => {
+            if (res.status === 401) {
+              logout();
+              throw new Error('Unauthorized / Token expired');
+            }
+            return res.json();
+          })
           .then((data) => {
             if (data.success && data.data?.status) {
               persistWalletOnboardingStatus(parsedUser.id, data.data.status);
@@ -103,16 +120,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           })
           .catch((err) => console.error('Failed to sync wallet status:', err));
       } catch (e) {
-        console.error('Failed to parse stored user:', e);
-        localStorage.removeItem('erp_user');
-        localStorage.removeItem('erp_token');
-        setUser(null);
-        setToken(null);
+        console.error('Failed to parse stored user or session error:', e);
+        logout();
       }
     }
 
     setIsLoading(false);
-  }, []);
+  }, [logout]);
 
   const login = async (email: string, password: string): Promise<AuthResult> => {
     try {
@@ -199,14 +213,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.error('[v0] Register error:', error);
       throw error;
     }
-  };
-
-  const logout = () => {
-    setUser(null);
-    setToken(null);
-    setWalletOnboardingStatusState('none');
-    localStorage.removeItem('erp_token');
-    localStorage.removeItem('erp_user');
   };
 
   return (

@@ -1,15 +1,16 @@
 'use client';
 
 import { useAuth } from '@/lib/auth-context';
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, Suspense } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import {
   CalendarDays, Clock, HeartPulse, Wallet, ShoppingCart, AlertTriangle,
   Stethoscope, TrendingUp, TrendingDown, DollarSign, Target, CheckCircle,
-  CalendarCheck, Package, BookOpen, ArrowRight, Activity, Database, ShieldCheck,
+  CalendarCheck, Package, BookOpen, ArrowRight, Activity, Database, ShieldCheck, X,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
+import { authenticatedFetch } from '@/lib/api';
 
 interface Stats {
   totalAppointments?: number; upcomingAppointments?: number;
@@ -44,24 +45,65 @@ const STATUS_STYLE: Record<string, string> = {
   completed: 'badge-completed', cancelled: 'badge-cancelled', rejected: 'badge-rejected',
 };
 
-export default function DashboardPage() {
-  const { user, token, walletOnboardingStatus, setWalletOnboardingStatus } = useAuth();
+function DashboardContent() {
+  const { user, token } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
   const [stats, setStats] = useState<Stats>({});
   const [loading, setLoading] = useState(true);
+  const [showWalletSuccess, setShowWalletSuccess] = useState(false);
+  const [walletStatus, setWalletStatus] = useState<string>('none');
+
+  useEffect(() => {
+    if (searchParams.get('wallet_submitted') === 'true') {
+      setShowWalletSuccess(true);
+    }
+  }, [searchParams]);
+
+  const fetchWalletStatus = useCallback(async () => {
+    if (!token || user?.role !== 'user') return;
+
+    try {
+      const res = await authenticatedFetch('/api/wallet-dashboard/status', token);
+      const data = await res.json();
+
+      if (res.ok && data.success) {
+        const nextStatus = data.data?.status || 'pending';
+        setWalletStatus(nextStatus);
+        if (nextStatus === 'approved') {
+          setShowWalletSuccess(false);
+        }
+      }
+    } catch (e) {
+      console.error('Wallet status fetch failed:', e);
+    }
+  }, [token, user?.role]);
 
   const fetchStats = useCallback(async () => {
     if (!token) return;
+
     try {
-      const res = await fetch('/api/dashboard/stats', { headers: { Authorization: `Bearer ${token}` } });
+      const res = await authenticatedFetch('/api/health-card', token);
       const data = await res.json();
-      if (data.success) setStats(data.data);
-    } catch (e) { console.error(e); }
-    finally { setLoading(false); }
+      
+      if (res.ok && data.success) {
+        setStats(data.data || data);
+      } else {
+        console.error('Stats fetch failed:', data.error || data.message);
+      }
+    } catch (e) {
+      console.error('Network or Session error:', e);
+    } finally {
+      setLoading(false);
+    }
   }, [token]);
 
-  useEffect(() => { fetchStats(); }, [fetchStats]);
+  useEffect(() => {
+    if (token) {
+      fetchStats();
+      fetchWalletStatus();
+    }
+  }, [token, fetchStats, fetchWalletStatus]);
 
   if (loading) {
     return (
@@ -83,11 +125,33 @@ export default function DashboardPage() {
     return 'Good evening';
   };
 
-  // Check if user is Admin or Support team member
-  const isAdminOrSupport = user?.role === 'admin' || user?.role === 'support';
+  const isAdminOrSupport = user?.role === 'admin';
+  const walletApplicationIsActive = user?.role === 'user' && (showWalletSuccess || ['pending', 'submitted', 'in-progress'].includes(walletStatus));
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 relative">
+      {walletApplicationIsActive && (
+        <div className="rounded-3xl border border-emerald-200 bg-emerald-50/90 p-5 shadow-sm">
+          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+            <div className="flex items-start gap-3">
+              <div className="w-11 h-11 rounded-2xl bg-emerald-100 flex items-center justify-center flex-shrink-0">
+                <CheckCircle size={20} className="text-emerald-700" />
+              </div>
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.24em] text-emerald-700">Wallet Application Status</p>
+                <h3 className="mt-1 text-xl font-bold text-emerald-900">Wallet Application Submitted</h3>
+                <p className="mt-1 text-sm text-emerald-800/80">
+                  Your wallet application has been successfully received and is now under review. This status remains visible until your application is reviewed or updated.
+                </p>
+              </div>
+            </div>
+            <div className="rounded-2xl bg-white/80 px-4 py-3 text-sm font-medium text-emerald-900 border border-emerald-200 shadow-sm">
+              {walletStatus === 'approved' ? 'Approved' : 'In Review'}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* 🚀 APPROVAL PENDING BANNER FOR DOCTORS */}
       {user?.role === 'doctor' && user?.isApproved === false && (
         <div className="bg-amber-50 border border-amber-200 text-amber-800 px-5 py-4 rounded-2xl flex items-center gap-3 shadow-sm animate-fade-in-up">
@@ -102,6 +166,7 @@ export default function DashboardPage() {
           </div>
         </div>
       )}
+
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-foreground">{greeting()}, {user?.fullName?.split(' ')[0] || 'Team'} 👋</h1>
@@ -260,5 +325,13 @@ export default function DashboardPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function DashboardPage() {
+  return (
+    <Suspense fallback={<div className="p-8 text-center text-muted-foreground">Loading dashboard...</div>}>
+      <DashboardContent />
+    </Suspense>
   );
 }

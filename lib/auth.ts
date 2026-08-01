@@ -1,7 +1,7 @@
 import * as jwt from 'jsonwebtoken';
 import * as bcrypt from 'bcryptjs';
+import { JWT_SECRET } from './jwt-config';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
 const JWT_EXPIRY = '7d';
 
 export interface TokenPayload {

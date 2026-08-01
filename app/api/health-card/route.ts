@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import jwt from 'jsonwebtoken';
+import { JWT_SECRET } from '@/lib/jwt-config';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -34,13 +35,9 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Login route mein jo secret ya logic use hota hai token generate karne ke liye
-    // Yahan hum token ko decode kar rahe hain taaki userId mil sake
-    const jwtSecret = process.env.JWT_SECRET || process.env.SUPABASE_JWT_SECRET || 'your-secret-key';
-    
     let decodedToken: any;
     try {
-      decodedToken = jwt.verify(token, jwtSecret);
+      decodedToken = jwt.verify(token, JWT_SECRET);
     } catch (err) {
       return NextResponse.json(
         { success: false, error: 'Invalid or expired token' },
@@ -57,7 +54,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // 1. Fetch Wallet Application Details
+    // 1. Fetch Wallet Application Details (delivery_status/delivery_updated_at bhi isi table mein hai)
     const { data: appData, error: appError } = await supabaseAdmin
       .from('wallet_applications')
       .select('*')
@@ -98,6 +95,9 @@ export async function GET(request: NextRequest) {
       amount_used: amountUsed,
       remaining_balance: remainingBalance,
       transactions: transactionsData || [],
+      // Physical card delivery tracking
+      delivery_status: appData?.delivery_status || 'processing',
+      delivery_updated_at: appData?.delivery_updated_at || null,
     };
 
     return NextResponse.json({ success: true, data: responseData }, { status: 200 });
@@ -106,5 +106,31 @@ export async function GET(request: NextRequest) {
       { success: false, error: error.message || 'Internal Server Error' },
       { status: 500 }
     );
+  }
+}
+
+// Backend API Route Example (Next.js / Node.js)
+export async function POST(req) {
+  try {
+    const token = req.headers.get('authorization')?.split(' ')[1];
+    if (!token) {
+      return Response.json({ success: false, message: "Unauthorized: No token provided" }, { status: 401 });
+    }
+
+    // Token verify karne ke baad body parse karein
+    const body = await req.json();
+    
+    // Check karein ki data aaya bhi hai ya nahi
+    if (!body) {
+      return Response.json({ success: false, message: "Request body is empty" }, { status: 400 });
+    }
+
+    // Database mein save karne ki logic (Prisma / Mongoose)
+    // const savedData = await db.healthCard.create({ data: { ...body, userId } });
+
+    return Response.json({ success: true, message: "Data saved successfully", data: body });
+  } catch (error) {
+    console.error("Database Save Error:", error);
+    return Response.json({ success: false, message: error.message }, { status: 500 });
   }
 }

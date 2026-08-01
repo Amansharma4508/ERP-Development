@@ -81,73 +81,66 @@ export async function POST(request: Request) {
 
     // 2. Database Upsert (INSERT ki jagah UPSERT — agar user_id already exist karta hai
     //    to row UPDATE ho jaayegi, "duplicate key value violates unique constraint" nahi aayega)
-    const { data, error } = await supabaseAdmin
-      .from('wallet_applications')
-      .upsert(
-        [
-          {
-            user_id: userId,
-            full_name: formData.fullName,
-            father_name: formData.fatherName,
-            mother_name: formData.motherName,
-            dob: formData.dob,
-            gender: formData.gender,
-            qualification: formData.qualification,
-            spouse_name: formData.spouseName || null,
-            blood_group: formData.bloodGroup,
-            occupation: formData.occupation,
+  // Upsert ke andar values ko robust banayein
+const { data, error } = await supabaseAdmin
+  .from('wallet_applications')
+  .upsert(
+    [
+      {
+        user_id: userId,
+        full_name: formData.fullName || '',
+        father_name: formData.fatherName || '',
+        mother_name: formData.motherName || '',
+        dob: formData.dob || null,
+        gender: formData.gender || 'Other',
+        qualification: formData.qualification || '',
+        spouse_name: formData.spouseName || null,
+        blood_group: formData.bloodGroup || '',
+        occupation: formData.occupation || '',
 
-            family_members_count: Number(formData.familyMembersCount || 0),
-            male_count: Number(formData.maleCount || 0),
-            female_count: Number(formData.femaleCount || 0),
-            head_of_family: formData.headOfFamily,
-            family_members: cleanFamilyMembers,
+        family_members_count: Number(formData.familyMembersCount || 0),
+        male_count: Number(formData.maleCount || 0),
+        female_count: Number(formData.femaleCount || 0),
+        head_of_family: formData.headOfFamily || '',
+        family_members: cleanFamilyMembers,
 
-            house_number: formData.houseNumber,
-            ward_number: formData.wardNumber,
-            village_city: formData.villageCity,
-            gram_panchayat: formData.gramPanchayat,
-            block: formData.block,
-            district: formData.district,
-            state: formData.state,
-            pin_code: formData.pinCode,
-            address_id: formData.addressId,
+        house_number: formData.houseNumber || '',
+        ward_number: formData.wardNumber || '',
+        village_city: formData.villageCity || '',
+        gram_panchayat: formData.gramPanchayat || '',
+        block: formData.block || '',
+        district: formData.district || '',
+        state: formData.state || '',
+        pin_code: formData.pinCode || '',
+        address_id: formData.addressId || '',
 
-            // Purana code:
-// uid_number: formData.uidNumber ? '[UID Provided]' : '[Not Provided]',
+        uid_number: formData.uidNumber || null,
+        pan_card: formData.panCard || '[PAN Omitted]',
+        food_intake: formData.foodIntake || '',
+        smoking: formData.smoking || '',
+        alcohol_consumption: formData.alcoholConsumption || '',
+        medical_expenses_monthly: Number(formData.medicalExpensesMonthly || 0),
+        drinking_water_source: formData.drinkingWaterSource || '',
+        food_source: formData.foodSource || '',
+        pollution_level: formData.pollutionLevel || '',
 
-// Naya code (Real number save karne ke liye):
-uid_number: formData.uidNumber || null,
-            pan_card: formData.panCard || '[PAN Omitted]',
-            food_intake: formData.foodIntake,
-            smoking: formData.smoking,
-            alcohol_consumption: formData.alcoholConsumption,
-            medical_expenses_monthly: Number(formData.medicalExpensesMonthly || 0),
-            drinking_water_source: formData.drinkingWaterSource,
-            food_source: formData.foodSource,
-            pollution_level: formData.pollutionLevel,
+        ...(finalPhotoUrl ? { live_photo_url: finalPhotoUrl } : {}),
+        application_date: formData.applicationDate || new Date().toISOString().split('T')[0],
+        place: formData.place || '',
+        application_time: formData.applicationTime || formData.time || new Date().toISOString().split('T')[1].substring(0, 8),
 
-            // Naya photo mile to hi URL update karo, warna purana URL mat udaao
-            ...(finalPhotoUrl ? { live_photo_url: finalPhotoUrl } : {}),
-            application_date: formData.applicationDate || new Date().toISOString().split('T')[0],
-            place: formData.place,
-            application_time:
-              formData.applicationTime ||
-              formData.time ||
-              new Date().toISOString().split('T')[1].substring(0, 8),
+        coordinator_id: formData.coordinatorId || null,
+        field_officer_id: formData.fieldOfficerId || null,
+        area_code: formData.areaCode || null,
+        vending_id: formData.vendingId || null,
 
-            coordinator_id: formData.coordinatorId,
-            field_officer_id: formData.fieldOfficerId,
-            area_code: formData.areaCode,
-            vending_id: formData.vendingId,
-
-            consent_given: formData.consentGiven === undefined ? true : !!formData.consentGiven,
-            status: formData.status || 'submitted',
-          },
-        ],
-        { onConflict: 'user_id' },
-      )
-      .select();
+        consent_given: formData.consentGiven === undefined ? true : !!formData.consentGiven,
+        status: formData.status || 'submitted',
+      },
+    ],
+    { onConflict: 'user_id' },
+  )
+  .select();
 
     if (error) {
       console.error('SUPABASE INSERT ERROR:', error);

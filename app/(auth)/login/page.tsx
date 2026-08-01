@@ -359,6 +359,11 @@ const handleSubmit = async (e: React.FormEvent) => {
                   className="w-full px-4 py-3 rounded-xl border border-border bg-muted text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring transition"
                   placeholder="••••••••" required />
               </div>
+              <div className="flex items-center justify-end">
+                <Link href="/forgot-password" className="text-sm font-medium text-primary hover:underline">
+                  Forgot Password?
+                </Link>
+              </div>
               <button type="submit" disabled={loading}
                 className="w-full py-3 rounded-xl font-semibold text-white transition-all flex items-center justify-center gap-2"
                 style={{ background: loading ? '#a5b4fc' : 'linear-gradient(135deg, #4f46e5, #7c3aed)' }}>

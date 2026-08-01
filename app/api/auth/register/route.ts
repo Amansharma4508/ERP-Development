@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { successResponse, errorResponse, toJson } from '@/lib/api-utils';
+import { generateToken } from '@/lib/auth';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -102,7 +103,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Step 3: Sign the new user in immediately
-    const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+    const { error: signInError } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
@@ -112,10 +113,17 @@ export async function POST(request: NextRequest) {
     }
 
     const walletOnboardingStatus = role === 'user' ? 'pending' : 'none';
+    const appToken = generateToken({
+      id: authData.user.id,
+      userId: authData.user.id,
+      email: authData.user.email || email,
+      fullName,
+      role: role as any,
+    });
 
     return toJson(
       successResponse({
-        token: signInData?.session?.access_token || '',
+        token: appToken,
         user: {
           id: authData.user.id,
           email: authData.user.email,

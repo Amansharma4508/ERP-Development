@@ -50,7 +50,7 @@ export default function WalletOnboardingPage() {
         <WalletOnboardingForm
           onSubmitted={() => {
             setWalletOnboardingStatus('in-progress');
-            router.replace('/dashboard');
+            router.replace('/dashboard?wallet_submitted=true');
           }}
         />
       </div>

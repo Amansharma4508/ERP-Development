@@ -2,7 +2,20 @@
 
 import { useAuth } from '@/lib/auth-context';
 import { useEffect, useState, useCallback } from 'react';
-import { CheckCircle, XCircle, User, Clock, Wallet, ArrowDownLeft, ArrowUpRight } from 'lucide-react';
+import {
+  CheckCircle,
+  XCircle,
+  User,
+  Clock,
+  Wallet,
+  ArrowDownLeft,
+  ArrowUpRight,
+  Printer,
+  PackageCheck,
+  Truck,
+  Home,
+  Lock,
+} from 'lucide-react';
 
 interface Transaction {
   id: string;
@@ -37,6 +50,85 @@ interface CardData {
   amount_used: number;
   remaining_balance: number;
   transactions: Transaction[];
+  delivery_status: 'processing' | 'printed' | 'dispatched' | 'out_for_delivery' | 'delivered';
+  delivery_updated_at: string | null;
+}
+
+// Physical card delivery ke stages — DB ke delivery_status column se match karte hain
+const DELIVERY_STAGES = [
+  { key: 'processing', label: 'Approved', icon: CheckCircle },
+  { key: 'printed', label: 'Card Printed', icon: Printer },
+  { key: 'dispatched', label: 'Dispatched', icon: PackageCheck },
+  { key: 'out_for_delivery', label: 'Out for Delivery', icon: Truck },
+  { key: 'delivered', label: 'Delivered', icon: Home },
+] as const;
+
+function getStageIndex(status: string | undefined) {
+  const idx = DELIVERY_STAGES.findIndex((s) => s.key === status);
+  return idx === -1 ? 0 : idx;
+}
+
+function DeliveryTracker({
+  deliveryStatus,
+  updatedAt,
+}: {
+  deliveryStatus: CardData['delivery_status'];
+  updatedAt: string | null;
+}) {
+  const currentIndex = getStageIndex(deliveryStatus);
+  const isDelivered = deliveryStatus === 'delivered';
+
+  return (
+    <div className="mt-6 rounded-2xl border border-border bg-muted/30 p-5">
+      <div className="flex items-center justify-between mb-5 flex-wrap gap-2">
+        <h4 className="text-sm font-bold text-foreground">Physical Card Delivery Status</h4>
+        {updatedAt && (
+          <span className="text-[11px] text-muted-foreground">
+            Last updated: {new Date(updatedAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+          </span>
+        )}
+      </div>
+
+      <div className="flex items-start justify-between relative">
+        {/* Connecting line track */}
+        <div className="absolute top-4 left-0 right-0 h-[3px] bg-border" style={{ marginLeft: '1.25rem', marginRight: '1.25rem' }} />
+        <div
+          className="absolute top-4 left-0 h-[3px] bg-emerald-500 transition-all duration-500"
+          style={{
+            marginLeft: '1.25rem',
+            width: `calc(${(currentIndex / (DELIVERY_STAGES.length - 1)) * 100}% - 2.5rem * ${currentIndex / (DELIVERY_STAGES.length - 1)})`,
+          }}
+        />
+
+        {DELIVERY_STAGES.map((stage, idx) => {
+          const StageIcon = stage.icon;
+          const isDone = idx < currentIndex || (isDelivered && idx === currentIndex);
+          const isCurrent = idx === currentIndex && !isDelivered;
+
+          return (
+            <div key={stage.key} className="relative z-10 flex flex-col items-center flex-1 min-w-0">
+              <div
+                className={`w-8 h-8 rounded-full flex items-center justify-center border-2 shrink-0 transition-colors
+                  ${isDone ? 'bg-emerald-500 border-emerald-500 text-white' : ''}
+                  ${isCurrent ? 'bg-white dark:bg-card border-blue-600 text-blue-600 animate-pulse' : ''}
+                  ${!isDone && !isCurrent ? 'bg-white dark:bg-card border-border text-muted-foreground' : ''}
+                `}
+              >
+                <StageIcon size={14} />
+              </div>
+              <span
+                className={`mt-2 text-[10px] font-semibold text-center leading-tight px-0.5
+                  ${isDone ? 'text-emerald-600' : isCurrent ? 'text-blue-600' : 'text-muted-foreground'}
+                `}
+              >
+                {stage.label}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
 }
 
 export default function WalletPage() {
@@ -45,7 +137,7 @@ export default function WalletPage() {
   const [cardLoading, setCardLoading] = useState(true);
   const [showRecentApprovalBanner, setShowRecentApprovalBanner] = useState(false);
 
- const fetchHealthCard = useCallback(async () => {
+  const fetchHealthCard = useCallback(async () => {
     if (!token) {
       setCardLoading(false);
       return;
@@ -55,11 +147,11 @@ export default function WalletPage() {
       setCardLoading(true);
       const response = await fetch('/api/health-card', {
         headers: {
-          'Authorization': `Bearer ${token}`
-        }
+          Authorization: `Bearer ${token}`,
+        },
       });
 
-      const data = await response.json(); // ✅ Fix: 'res' ki jagah 'response' kiya gaya hai
+      const data = await response.json();
 
       if (response.ok && data.success) {
         setCardData(data.data);
@@ -92,15 +184,16 @@ export default function WalletPage() {
       setCardLoading(false);
     }
   }, [token]);
+
   useEffect(() => {
     fetchHealthCard();
   }, [fetchHealthCard]);
 
-  // Removes warning banner below cards when status is approved/active
+  // Application abhi tak review mein hai (admin approval pending)
   const renderStatusBanner = (status: string) => {
     const statusLower = (status || '').toLowerCase();
     if (statusLower === 'approved' || statusLower === 'active') {
-      return null; 
+      return null;
     }
 
     return (
@@ -113,6 +206,10 @@ export default function WalletPage() {
       </div>
     );
   };
+
+  const isApproved = ['approved', 'active'].includes((cardData?.status || '').toLowerCase());
+  const isPhysicallyDelivered = cardData?.delivery_status === 'delivered';
+  const showDeliveryLockWarning = isApproved && !isPhysicallyDelivered;
 
   return (
     <div className="space-y-6">
@@ -140,7 +237,13 @@ export default function WalletPage() {
 
         {/* Wallet Balance Widget */}
         {cardData && (
-          <div className="bg-gradient-to-r from-indigo-600 to-blue-600 p-5 rounded-2xl text-white shadow-lg w-full sm:w-80">
+          <div className="bg-gradient-to-r from-indigo-600 to-blue-600 p-5 rounded-2xl text-white shadow-lg w-full sm:w-80 relative overflow-hidden">
+            {showDeliveryLockWarning && (
+              <div className="absolute inset-0 bg-slate-900/55 backdrop-blur-[1px] flex items-center justify-center gap-2 text-xs font-semibold">
+                <Lock size={14} />
+                Locked until card delivery
+              </div>
+            )}
             <p className="text-[11px] uppercase tracking-wider text-white/80 font-medium">Available Wallet Balance</p>
             <h2 className="text-3xl font-extrabold mt-1">
               ₹ {cardData?.remaining_balance?.toLocaleString() || cardData?.amount_given?.toLocaleString() || '35,000'}
@@ -226,8 +329,37 @@ export default function WalletPage() {
               </div>
             </div>
 
-            {/* Conditional Status Banner */}
+            {/* Application under-review banner (only when not yet approved) */}
             {renderStatusBanner(cardData.status)}
+
+            {/* Physical delivery tracker — sirf tab dikhega jab application approved ho chuki ho */}
+            {isApproved && (
+              <DeliveryTracker deliveryStatus={cardData.delivery_status} updatedAt={cardData.delivery_updated_at} />
+            )}
+
+            {/* Lock warning: physical card delivery hone tak transactions use nahi ho sakte */}
+            {showDeliveryLockWarning && (
+              <div className="mt-4 p-4 rounded-2xl bg-red-500/10 border border-red-500/20 flex items-start gap-3 text-red-700 dark:text-red-400">
+                <Lock size={20} className="shrink-0 mt-0.5" />
+                <div className="text-sm">
+                  <span className="font-semibold block">Wallet Locked — Physical Card Pending</span>
+                  <span className="text-red-700/90 dark:text-red-400/90">
+                    You can start using your wallet balance for transactions only after your physical Health ID card is delivered to you.
+                    Track the delivery progress above — you'll be notified once it's on its way.
+                  </span>
+                </div>
+              </div>
+            )}
+
+            {isPhysicallyDelivered && (
+              <div className="mt-4 p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center gap-3 text-emerald-700 dark:text-emerald-400">
+                <CheckCircle size={20} className="shrink-0" />
+                <div className="text-sm">
+                  <span className="font-semibold block">Card Delivered — Wallet Active</span>
+                  <span>Your physical card has been delivered. You can now use your wallet balance for transactions.</span>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -235,7 +367,7 @@ export default function WalletPage() {
       {/* Transaction History Section */}
       <div className="rounded-3xl border border-border bg-card p-6 shadow-sm space-y-4">
         <h3 className="text-base font-bold text-foreground">Transaction History (Online & Offline)</h3>
-        
+
         {!cardData?.transactions || cardData.transactions.length === 0 ? (
           <p className="text-xs text-muted-foreground py-6 text-center">No recent transactions found in your wallet.</p>
         ) : (
