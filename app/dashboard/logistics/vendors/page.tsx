@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation';
 
 export default function VendorsRedirectPage() {
-  redirect('/dashboard/logistics/hospitals');
+  redirect('/dashboard/admin-panel/hospitals');
 }

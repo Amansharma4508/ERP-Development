@@ -1,11 +1,24 @@
-import { NextRequest } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase/server';
 import { successResponse, errorResponse, toJson } from '@/lib/api-utils';
 import { verifyToken, getTokenFromRequest } from '@/lib/auth';
 
+// Helper function to calculate age from Date of Birth (DOB)
+function calculateAge(dobString: string): number | null {
+  if (!dobString) return null;
+  const dob = new Date(dobString);
+  if (isNaN(dob.getTime())) return null;
+  
+  const today = new Date();
+  let age = today.getFullYear() - dob.getFullYear();
+  const m = today.getMonth() - dob.getMonth();
+  if (m < 0 || (m === 0 && today.getDate() < dob.getDate())) {
+    age--;
+  }
+  return age >= 0 ? age : null;
+}
+
 // PATCH /api/appointments/[id]
-// body: { action: 'status', status: 'confirmed'|'rejected'|'completed'|'cancelled' }
-// body: { action: 'reschedule', date: 'YYYY-MM-DD', time: 'HH:mm' }
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const token = getTokenFromRequest(request);
   if (!token) return toJson(errorResponse('Unauthorized', 401));
@@ -58,12 +71,10 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     if (!['confirmed', 'rejected', 'completed'].includes(status)) {
       return toJson(errorResponse('Invalid status for doctor', 400));
     }
-    // Doctor sirf pending -> confirmed/rejected, ya confirmed -> completed kar sakta hai
     allowedFromStatuses = status === 'completed' ? ['confirmed'] : ['pending'];
   } else if (payload.role === 'user') {
     if (appt.patient_id !== userId) return toJson(errorResponse('Forbidden', 403));
     if (status !== 'cancelled') return toJson(errorResponse('Patients can only cancel', 400));
-    // Patient sirf pending ya confirmed appointment cancel kar sakta hai
     allowedFromStatuses = ['pending', 'confirmed'];
   } else if (payload.role !== 'admin') {
     return toJson(errorResponse('Forbidden', 403));
@@ -77,7 +88,6 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     .update(updates)
     .eq('id', id);
 
-  // Race-condition guard: sirf tabhi update ho jab current status abhi bhi expected ho
   if (allowedFromStatuses.length > 0) {
     updateQuery = updateQuery.in('status', allowedFromStatuses);
   }
@@ -94,23 +104,126 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   if (updErr) return toJson(errorResponse(updErr.message, 500));
 
   if (!updated) {
-    // Matlab is beech mein status kisi aur action se already change ho chuka tha
     return toJson(errorResponse('This appointment was already updated by someone else. Please refresh.', 409));
+  }
+
+  // ── AUTOMATIC PATIENT SYNC ON CONFIRMATION ──────────────────
+  if (payload.role === 'doctor' && status === 'confirmed' && updated.patient_id) {
+    try {
+      const patientUserId = updated.patient_id;
+      const profileName = updated.patient?.full_name;
+
+      // 1. Fetch demographics from wallet_applications by ID or Name fallback
+      let { data: walletData } = await supabaseAdmin
+        .from('wallet_applications')
+        .select('*')
+        .eq('id', patientUserId)
+        .maybeSingle();
+
+      if (!walletData && profileName) {
+        const { data: walletByName } = await supabaseAdmin
+          .from('wallet_applications')
+          .select('*')
+          .ilike('full_name', profileName.trim())
+          .maybeSingle();
+        walletData = walletByName;
+      }
+
+      // 2. Fetch contact info from profiles
+      const { data: profileData } = await supabaseAdmin
+        .from('profiles')
+        .select('*')
+        .eq('id', patientUserId)
+        .maybeSingle();
+
+      const dobField = walletData?.dob || walletData?.date_of_birth || walletData?.birth_date;
+      const calculatedAge = calculateAge(dobField) ?? walletData?.age ?? null;
+
+      const patientAddress = [
+        walletData?.village_city,
+        walletData?.state,
+        walletData?.pincode,
+        walletData?.address
+      ].filter(Boolean).join(', ') || null;
+
+      // 3. Upsert into patients table mapping specifically with doctor_id
+      const { error: upsertErr } = await supabaseAdmin
+        .from('patients')
+        .upsert({
+          id: patientUserId,
+          doctor_id: updated.doctor_id,
+          name: walletData?.full_name || profileData?.full_name || updated.patient?.full_name || 'Unknown Patient',
+          age: calculatedAge,
+          gender: walletData?.gender || walletData?.sex || null,
+          address: patientAddress,
+          email: profileData?.email || walletData?.email || null,
+          phone: profileData?.phone_number || walletData?.phone_number || updated.patient?.phone_number || null,
+        }, { 
+          onConflict: 'id,doctor_id' 
+        });
+
+      if (upsertErr) {
+        console.error('Error upserting patient data:', upsertErr.message);
+      }
+    } catch (syncErr) {
+      console.error('Error auto-syncing patient data:', syncErr);
+    }
   }
 
   return toJson(successResponse(updated));
 }
 
-// DELETE /api/appointments/[id]
-export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+// DELETE: Handle both Single Delete (via params) and Bulk Delete (via body IDs) securely
+export async function DELETE(
+  request: NextRequest, 
+  { params }: { params: Promise<{ id: string }> }
+) {
   const token = getTokenFromRequest(request);
   if (!token) return toJson(errorResponse('Unauthorized', 401));
   const payload = verifyToken(token);
   if (!payload || payload.role !== 'admin') return toJson(errorResponse('Forbidden', 403));
 
-  const { id } = await params;
-  const { error } = await supabaseAdmin.from('appointments').delete().eq('id', id);
-  if (error) return toJson(errorResponse(error.message, 500));
+  try {
+    let bodyIds: string[] = [];
+    
+    // Check if request body has multiple IDs for bulk delete
+    try {
+      const body = await request.json();
+      if (body && Array.isArray(body.ids)) {
+        bodyIds = body.ids;
+      }
+    } catch {
+      // Body can be empty if it's a standard single delete query
+    }
 
-  return toJson(successResponse({ message: 'Deleted' }));
+    // BULK DELETE
+    if (bodyIds.length > 0) {
+      const { error } = await supabaseAdmin
+        .from('appointments')
+        .delete()
+        .in('id', bodyIds);
+
+      if (error) return toJson(errorResponse(error.message, 500));
+
+      return toJson(successResponse({ message: `${bodyIds.length} appointments deleted successfully` }));
+    }
+
+    // SINGLE DELETE
+    const { id } = await params;
+    if (!id) {
+      return toJson(errorResponse('Appointment ID is required', 400));
+    }
+
+    const { error } = await supabaseAdmin
+      .from('appointments')
+      .delete()
+      .eq('id', id);
+
+    if (error) return toJson(errorResponse(error.message, 500));
+
+    return toJson(successResponse({ message: 'Appointment deleted successfully' }));
+
+  } catch (err: any) {
+    return toJson(errorResponse(err.message, 500));
+  }
 }

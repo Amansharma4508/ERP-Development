@@ -1,9 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseServiceRole = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-const supabaseAdmin = createClient(supabaseUrl, supabaseServiceRole);
+import { supabaseAdmin } from '@/lib/supabase/server';
 
 // GET: Fetch all batches
 export async function GET() {
@@ -21,7 +17,7 @@ export async function GET() {
   }
 }
 
-// POST: Create a new Card Printing Batch
+// POST: Create a new Card Printing Batch (Aapka purana code)
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
@@ -46,5 +42,38 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: true, data });
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });
+  }
+}
+
+// DELETE: Single or Bulk delete for batches
+export async function DELETE(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get('id');
+
+    if (id) {
+      const { error } = await supabaseAdmin
+        .from('card_print_batches')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+      return NextResponse.json({ success: true, message: 'Batch deleted successfully' });
+    }
+
+    const body = await request.json().catch(() => null);
+    if (body && Array.isArray(body.ids)) {
+      const { error } = await supabaseAdmin
+        .from('card_print_batches')
+        .delete()
+        .in('id', body.ids);
+
+      if (error) throw error;
+      return NextResponse.json({ success: true, message: 'Selected batches deleted successfully' });
+    }
+
+    return NextResponse.json({ success: false, error: 'No ID or IDs provided' }, { status: 400 });
+  } catch (err: any) {
+    return NextResponse.json({ success: false, error: err.message }, { status: 500 });
   }
 }

@@ -17,20 +17,21 @@ const NAV_ALL = [
   { name: 'Appointments',   href: '/dashboard/appointments',          Icon: CalendarDays,    roles: ['user'] },
   { name: 'Appointments',   href: '/dashboard/doctor-panel/appointments',          Icon: CalendarDays,    roles: ['doctor','support'] },
   { name: 'Wallet',         href: '/dashboard/wallet',                Icon: Wallet,          roles: ['user','support'] },
-  { name: 'Users',          href: '/dashboard/admin/users',                 Icon: User,            roles: ['admin','support'] },
+  { name: 'Users',          href: '/dashboard/admin-panel/users',                 Icon: User,            roles: ['admin','support'] },
   { name: 'Doctors',        href: '/dashboard/doctors',               Icon: Stethoscope,     roles: ['user','support'] },
-  { name: 'Doctors',        href: '/dashboard//admin/doctors',               Icon: Stethoscope,     roles: ['admin','support'] },
+  { name: 'Doctors',        href: '/dashboard/admin-panel/doctors',               Icon: Stethoscope,     roles: ['admin','support'] },
+  { name: 'My Patients',    href: '/dashboard/doctor-panel',            Icon: Users,           roles: ['doctor','support'] },
   // { name: 'Inventory',      href: '/dashboard/inventory',             Icon: Package,         roles: ['doctor','admin','support'] },
   // { name: 'Orders',         href: '/dashboard/orders',                Icon: ShoppingCart,    roles: ['doctor','admin','support'] },
   // { name: 'Accounting',     href: '/dashboard/accounting',            Icon: BookOpen,        roles: ['admin','support'] },
-  { name: 'Wallet Control', href: '/dashboard/admin/wallet-control',      Icon: LayoutGrid,      roles: ['admin','support'] },
+  { name: 'Wallet Control', href: '/dashboard/admin-panel/wallet-control',      Icon: LayoutGrid,      roles: ['admin','support'] },
   // ── Logistics Panel ──────────────────────────────────────────────────────
-  { name: 'Shipments',        href: '/dashboard/logistics/shipments',    Icon: Truck,           roles: ['logistics','admin','support'] },
-  { name: 'Hospital Network', href: '/dashboard/logistics/hospitals',    Icon: Building2,       roles: ['logistics','admin','support'] }, 
-  { name: 'Card Fulfillment', href: '/dashboard/logistics/card-fulfillment', Icon: CreditCard, roles: ['logistics','admin','support'] }, 
-  { name: 'Warehouses',       href: '/dashboard/logistics/warehouses',   Icon: Warehouse,       roles: ['logistics','admin','support'] },
-  { name: 'Team',             href: '/dashboard/logistics/team',         Icon: MapPin,          roles: ['logistics','admin','support'] },
-  { name: 'Funds Ledger',     href: '/dashboard/logistics/ledger',       Icon: ReceiptText,     roles: ['logistics','admin','support'] },
+  { name: 'Shipments',        href: '/dashboard/admin-panel/shipments',    Icon: Truck,           roles: ['logistics','admin','support'] },
+  { name: 'Hospital Network', href: '/dashboard/admin-panel/hospitals',    Icon: Building2,       roles: ['logistics','admin','support'] }, 
+  { name: 'Card Fulfillment', href: '/dashboard/admin-panel/card-fulfillment', Icon: CreditCard, roles: ['logistics','admin','support'] }, 
+  { name: 'Warehouses',       href: '/dashboard/admin-panel/warehouses',   Icon: Warehouse,       roles: ['logistics','admin','support'] },
+  { name: 'Team',             href: '/dashboard/admin-panel/team',         Icon: MapPin,          roles: ['logistics','admin','support'] },
+  { name: 'Funds Ledger',     href: '/dashboard/admin-panel/ledger',       Icon: ReceiptText,     roles: ['logistics','admin','support'] },
   { name: 'Invited Members',  href: '/dashboard/team-members',           Icon: UserPlus,        roles: ['admin','support'] },
 ];
 
@@ -54,7 +55,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
     // Redirect logistics users to their dedicated home
     if (user.role === 'logistics') {
-      router.push('/dashboard/logistics');
+      router.push('/dashboard/logistics-panel');
       return;
     }
 

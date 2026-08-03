@@ -1,16 +1,22 @@
 import { createClient } from '@supabase/supabase-js';
-// Ya agar aap standard @supabase/supabase-js use kar rahe hain:
-// import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? '';
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '';
+const supabaseServiceRoleKey =
+  process.env.SUPABASE_SERVICE_ROLE_KEY ??
+  process.env.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY ??
+  supabaseAnonKey;
 
-if (!supabaseUrl || !supabaseAnonKey) {
-  throw new Error('Missing Supabase environment variables in .env.local');
-}
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+  auth: {
+    persistSession: false,
+    autoRefreshToken: false,
+  },
+});
 
-// SSR package ke sath (Aam taur par Next.js mein yehi use hota hai):
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
-
-// Agar aap standard client use kar rahe hain toh yeh likhein:
-// export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+export const supabaseAdmin = createClient(supabaseUrl, supabaseServiceRoleKey, {
+  auth: {
+    persistSession: false,
+    autoRefreshToken: false,
+  },
+});

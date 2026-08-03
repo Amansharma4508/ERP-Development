@@ -62,19 +62,19 @@ export default function DoctorAppointmentsPage() {
     fetchAppointments();
   }, [fetchAppointments]);
 
- const handleAction = async (id: string, status: string) => {
+  const handleAction = async (id: string, status: string) => {
     setActionLoading(id + status);
     try {
       const res = await fetch(`/api/appointments/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ status }),
+        body: JSON.stringify({ action: 'status', status }),
       });
       const data = await res.json();
       if (!res.ok) {
         if (res.status === 409) {
           showToast(data.error, 'error');
-          fetchAppointments(); // list refresh karo taaki latest status dikhe
+          fetchAppointments();
           return;
         }
         throw new Error(data.error || 'Action failed');
@@ -82,7 +82,7 @@ export default function DoctorAppointmentsPage() {
 
       setAppointments(prev => prev.map(a => (a.id === id ? data.data : a)));
       showToast(
-        status === 'confirmed' ? 'Appointment confirmed.' :
+        status === 'confirmed' ? 'Appointment confirmed & patient data synced.' :
         status === 'rejected' ? 'Appointment rejected.' :
         'Marked as completed.'
       );
@@ -93,10 +93,6 @@ export default function DoctorAppointmentsPage() {
     }
   };
 
-  // Pending/confirmed dono ek hi combined tab mein dikhte hain.
-  // Note: jo pending appointment ka time nikal chuka hota hai wo backend
-  // (/api/appointments GET) khud-ba-khud 'cancelled' mark kar deta hai,
-  // isliye ye list hamesha sirf "genuinely actionable" items dikhati hai.
   const filteredAppointments = appointments.filter(appt => {
     if (activeTab === 'pendingUpcoming' && appt.status !== 'pending' && appt.status !== 'confirmed') return false;
     if (activeTab === 'completed' && appt.status !== 'completed') return false;
@@ -112,7 +108,6 @@ export default function DoctorAppointmentsPage() {
     return true;
   });
 
-  // Pending wale sabse upar dikhein (action lene wale), phir confirmed
   const sortedAppointments = [...filteredAppointments].sort((a, b) => {
     if (activeTab === 'pendingUpcoming') {
       if (a.status === 'pending' && b.status !== 'pending') return -1;
@@ -145,7 +140,7 @@ export default function DoctorAppointmentsPage() {
 
   const STATUS_HELP: Record<string, string> = {
     pending: 'Awaiting your response — accept or reject before the slot passes',
-    confirmed: 'Confirmed — will auto-move to Completed after the visit',
+    confirmed: 'Confirmed — patient synced to dashboard & will auto-move to Completed after visit',
     completed: 'Consultation completed',
     cancelled: 'Cancelled (patient cancelled, or slot expired without your response)',
     rejected: 'You rejected this request',

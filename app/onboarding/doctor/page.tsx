@@ -2,8 +2,8 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { supabase } from '@/lib/supabase/client'; // Apne supabase client ka path check kar lein
 import { useAuth } from '@/lib/auth-context';
+import { upsertDoctorProfile } from '@/lib/supabase/db';
 import { Stethoscope, AlertCircle, Check } from 'lucide-react';
 
 const DAYS_OF_WEEK = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
@@ -42,7 +42,7 @@ const handleSubmit = async (e: React.FormEvent) => {
 
   setLoading(true);
   try {
-    const { error: dbError } = await supabase.from('doctor_profiles').upsert({
+    const { error: dbError } = await upsertDoctorProfile({
       id: user.id,
       specialization: form.specialization,
       license_no: form.license_no,

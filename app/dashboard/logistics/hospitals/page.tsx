@@ -5,6 +5,7 @@ import { useEffect, useState, useCallback, useMemo } from 'react';
 import { 
   Building2, Plus, X, AlertCircle, CheckCircle, XCircle, Pencil, Trash2, Search, Eye, Download, MapPin, Phone, ChevronLeft, ChevronRight, Stethoscope 
 } from 'lucide-react';
+import CustomCheckbox from '@/components/CustomCheckbox'; 
 import HospitalModal from '@/components/HospitalModal';
 import HospitalEditModal from '@/components/HospitalEditModal';
 
@@ -58,6 +59,9 @@ export default function HospitalNetworkPage() {
   const [editVendor, setEditVendor] = useState<HospitalVendor | null>(null);
   const [toast, setToast] = useState<{ msg: string; type: 'success' | 'error' } | null>(null);
 
+  // Multi-select state
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+
   const showToast = (msg: string, type: 'success' | 'error' = 'success') => {
     setToast({ msg, type });
     setTimeout(() => setToast(null), 3000);
@@ -71,7 +75,6 @@ export default function HospitalNetworkPage() {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await res.json();
-      console.log("API Full Response:", data);
       
       if (data.success && Array.isArray(data.data)) {
         const formattedData: HospitalVendor[] = data.data
@@ -142,6 +145,7 @@ export default function HospitalNetworkPage() {
 
   useEffect(() => {
     setCurrentPage(1);
+    setSelectedIds([]); 
   }, [search, statusFilter]);
 
   const openAdd = () => {
@@ -158,13 +162,14 @@ export default function HospitalNetworkPage() {
     if (!token) {
       throw new Error('Authentication token missing. Please relogin.');
     }
-    const url = editVendor ? `${API_ENDPOINT}/${editVendor.id}` : API_ENDPOINT;
+    // Update ke liye query param ya body bhejni padegi agar [id] folder nahi hai
+    const url = editVendor ? `${API_ENDPOINT}?id=${editVendor.id}` : API_ENDPOINT;
     const method = editVendor ? 'PATCH' : 'POST';
 
     const res = await fetch(url, {
       method,
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      body: JSON.stringify(payload),
+      body: JSON.stringify(editVendor ? { ...payload, id: editVendor.id } : payload),
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Save failed');
@@ -179,10 +184,10 @@ export default function HospitalNetworkPage() {
     try {
       setHospitals(prev => prev.map(v => v.id === id ? { ...v, supplyStatus: newStatus as any } : v));
 
-      const res = await fetch(`${API_ENDPOINT}/${id}`, {
+      const res = await fetch(`${API_ENDPOINT}?id=${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ supplyStatus: newStatus }),
+        body: JSON.stringify({ supplyStatus: newStatus, id }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to update status');
@@ -194,6 +199,7 @@ export default function HospitalNetworkPage() {
     }
   };
 
+  // Single Delete via Query Parameter (?id=...)
   const handleDelete = async (id: string) => {
     if (!confirm('Are you sure you want to delete this hospital partner?')) return;
     if (!token) {
@@ -202,18 +208,88 @@ export default function HospitalNetworkPage() {
     }
 
     try {
-      const res = await fetch(`${API_ENDPOINT}/${id}`, {
+      const res = await fetch(`${API_ENDPOINT}?id=${id}`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Delete failed');
 
+      setHospitals(prev => prev.filter(v => v.id !== id));
+      setSelectedIds(prev => prev.filter(itemId => itemId !== id));
       showToast('Hospital Partner deleted successfully');
-      fetchHospitals();
     } catch (err: any) {
       showToast(err.message, 'error');
     }
+  };
+
+  // Bulk Delete via Request Body ({ ids: [...] })
+  const handleBulkDelete = async () => {
+    if (selectedIds.length === 0) return;
+    const confirmed = window.confirm(`Kya aap sach mein ${selectedIds.length} selected hospital partners ko delete karna chahte hain?`);
+    if (!confirmed) return;
+    if (!token) {
+      showToast('Authentication token missing', 'error');
+      return;
+    }
+
+    try {
+      const res = await fetch(API_ENDPOINT, {
+        method: 'DELETE',
+        headers: { 
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}` 
+        },
+        body: JSON.stringify({ ids: selectedIds }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Bulk delete failed');
+
+      setHospitals(prev => prev.filter(v => !selectedIds.includes(v.id)));
+      setSelectedIds([]);
+      showToast('Selected hospital partners deleted successfully');
+    } catch (err: any) {
+      console.error('Error bulk deleting:', err);
+      showToast(err.message || 'Failed to delete selected hospital partners', 'error');
+    }
+  };
+
+  const filtered = useMemo(() => {
+    return hospitals.filter(v => {
+      const matchesSearch = v.name.toLowerCase().includes(search.toLowerCase()) || 
+                            v.hospitalName?.toLowerCase().includes(search.toLowerCase()) || 
+                            v.state?.toLowerCase().includes(search.toLowerCase());
+      const matchesStatus = statusFilter === 'all' || v.supplyStatus === statusFilter;
+      return matchesSearch && matchesStatus;
+    });
+  }, [hospitals, search, statusFilter]);
+
+  const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE);
+  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+  const currentItems = filtered.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+
+  const isAllCurrentPageSelected = 
+    currentItems.length > 0 && 
+    currentItems.every((v) => selectedIds.includes(v.id));
+
+  const isSomeCurrentPageSelected = 
+    selectedIds.length > 0 && !isAllCurrentPageSelected;
+
+  const handleSelectAllCurrentPage = () => {
+    if (isAllCurrentPageSelected) {
+      const pageIds = currentItems.map(v => v.id);
+      setSelectedIds(prev => prev.filter(id => !pageIds.includes(id)));
+    } else {
+      const pageIds = currentItems.map(v => v.id);
+      const combined = Array.from(new Set([...selectedIds, ...pageIds]));
+      setSelectedIds(combined);
+    }
+  };
+
+  const handleSelectOne = (id: string) => {
+    setSelectedIds(prev => 
+      prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id]
+    );
   };
 
   const handleExport = async () => {
@@ -236,20 +312,6 @@ export default function HospitalNetworkPage() {
     }
   };
 
-  const filtered = useMemo(() => {
-    return hospitals.filter(v => {
-      const matchesSearch = v.name.toLowerCase().includes(search.toLowerCase()) || 
-                            v.hospitalName?.toLowerCase().includes(search.toLowerCase()) || 
-                            v.state?.toLowerCase().includes(search.toLowerCase());
-      const matchesStatus = statusFilter === 'all' || v.supplyStatus === statusFilter;
-      return matchesSearch && matchesStatus;
-    });
-  }, [hospitals, search, statusFilter]);
-
-  const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE);
-  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-  const currentItems = filtered.slice(startIndex, startIndex + ITEMS_PER_PAGE);
-
   return (
     <div className="space-y-6">
       {toast && (
@@ -266,6 +328,14 @@ export default function HospitalNetworkPage() {
           <p className="text-muted-foreground text-sm mt-1">Manage affiliations, operational agreements, and medical center onboarding.</p>
         </div>
         <div className="flex items-center gap-3">
+          {selectedIds.length > 0 && (
+            <button 
+              onClick={handleBulkDelete}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white font-semibold shadow-sm transition text-sm"
+            >
+              <Trash2 size={16} /> Delete Selected ({selectedIds.length})
+            </button>
+          )}
           <button onClick={handleExport} className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-border bg-card text-foreground font-semibold shadow-sm hover:bg-muted transition text-sm">
             <Download size={16} /> Export PDF
           </button>
@@ -299,9 +369,17 @@ export default function HospitalNetworkPage() {
       {/* Table */}
       <div className="bg-card rounded-2xl border border-border overflow-hidden">
         <div className="w-full overflow-x-auto">
-          <table className="w-full min-w-[1150px] text-sm text-left border-collapse">
+          <table className="w-full min-w-[1200px] text-sm text-left border-collapse">
             <thead>
               <tr className="border-b border-border bg-muted text-muted-foreground text-xs uppercase font-semibold">
+                <th className="px-4 py-3 whitespace-nowrap w-12 text-center">
+                  <CustomCheckbox
+                    checked={isAllCurrentPageSelected}
+                    indeterminate={isSomeCurrentPageSelected}
+                    onChange={handleSelectAllCurrentPage}
+                    ariaLabel="Select all on current page"
+                  />
+                </th>
                 <th className="px-4 py-3 whitespace-nowrap w-16">Sr. No.</th>
                 <th className="px-4 py-3 whitespace-nowrap">Vendor & Facility</th>
                 <th className="px-4 py-3 whitespace-nowrap">State</th>
@@ -316,18 +394,26 @@ export default function HospitalNetworkPage() {
             <tbody className="divide-y divide-border">
               {loading ? (
                 <tr>
-                  <td colSpan={9} className="text-center py-12 text-muted-foreground">Loading hospital partners...</td>
+                  <td colSpan={10} className="text-center py-12 text-muted-foreground">Loading hospital partners...</td>
                 </tr>
               ) : currentItems.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="text-center py-12 text-muted-foreground">No hospital partners found.</td>
+                  <td colSpan={10} className="text-center py-12 text-muted-foreground">No hospital partners found.</td>
                 </tr>
               ) : (
                 currentItems.map((v, index) => {
                   const balance = (v.amountGiven || 0) - (v.amountUsed || 0);
                   const serialNumber = startIndex + index + 1;
+                  const isSelected = selectedIds.includes(v.id);
                   return (
-                    <tr key={v.id} className="hover:bg-muted/50 transition">
+                    <tr key={v.id} className={`hover:bg-muted/50 transition ${isSelected ? 'bg-muted/60' : ''}`}>
+                      <td className="px-4 py-3 text-center whitespace-nowrap">
+                        <CustomCheckbox
+                          checked={isSelected}
+                          onChange={() => handleSelectOne(v.id)}
+                          ariaLabel={`Select ${v.name}`}
+                        />
+                      </td>
                       <td className="px-4 py-3 text-xs font-medium text-muted-foreground whitespace-nowrap">
                         {serialNumber < 10 ? `0${serialNumber}` : serialNumber}
                       </td>
@@ -377,25 +463,53 @@ export default function HospitalNetworkPage() {
         </div>
       </div>
 
-  {/* View Modal */}
-  <HospitalModal 
-    isOpen={!!viewHospital} 
-    onClose={() => setViewHospital(null)} 
-    hospital={viewHospital} 
-    onExport={handleExport}
-  />
+      {/* Pagination Controls */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between px-1">
+          <p className="text-xs text-muted-foreground">
+            Showing {startIndex + 1} - {Math.min(startIndex + ITEMS_PER_PAGE, filtered.length)} of {filtered.length} entries
+          </p>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+              disabled={currentPage === 1}
+              className="p-2 rounded-xl border border-border bg-card text-foreground hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed transition"
+            >
+              <ChevronLeft size={16} />
+            </button>
+            <span className="text-xs font-semibold text-foreground">
+              Page {currentPage} of {totalPages}
+            </span>
+            <button
+              onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+              disabled={currentPage === totalPages}
+              className="p-2 rounded-xl border border-border bg-card text-foreground hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed transition"
+            >
+              <ChevronRight size={16} />
+            </button>
+          </div>
+        </div>
+      )}
 
-  {/* Edit / Add Modal - Yahan teeno props pass kar dein taaki empty na aaye */}
-  {showAdd && (
-    <HospitalEditModal 
-      isOpen={showAdd}
-      onClose={() => setShowAdd(false)}
-      onSave={handleSaveHospital}
-      editData={editVendor}
-      initialData={editVendor}
-      hospital={editVendor}
-    />
-  )}
-</div>
+      {/* View Modal */}
+      <HospitalModal 
+        isOpen={!!viewHospital} 
+        onClose={() => setViewHospital(null)} 
+        hospital={viewHospital} 
+        onExport={handleExport}
+      />
+
+      {/* Edit / Add Modal */}
+      {showAdd && (
+        <HospitalEditModal 
+          isOpen={showAdd}
+          onClose={() => setShowAdd(false)}
+          onSave={handleSaveHospital}
+          editData={editVendor}
+          initialData={editVendor}
+          hospital={editVendor}
+        />
+      )}
+    </div>
   );
 }

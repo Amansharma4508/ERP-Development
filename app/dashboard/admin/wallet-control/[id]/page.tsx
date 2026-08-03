@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { createClient } from '@supabase/supabase-js';
+import { getPublicPhotoUrl } from '@/lib/supabase/storage';
+import { getWalletApplicationByUserId, updateWalletApplication } from '@/lib/supabase/db';
 import { 
   ArrowLeft, 
   User, 
@@ -16,10 +17,6 @@ import {
   X,
   AlertCircle 
 } from 'lucide-react';
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 export default function AdminWalletViewPage() {
   const params = useParams();
@@ -44,11 +41,7 @@ export default function AdminWalletViewPage() {
     const fetchDetails = async () => {
       setLoading(true);
       try {
-        const { data, error } = await supabase
-          .from('wallet_applications')
-          .select('*')
-          .eq('id', id)
-          .single();
+        const { data, error } = await getWalletApplicationByUserId(id as string);
 
         if (error) throw error;
         setApplication(data);
@@ -70,10 +63,7 @@ export default function AdminWalletViewPage() {
         updateData.rejection_reason = reason;
       }
 
-      const { error } = await supabase
-        .from('wallet_applications')
-        .update(updateData)
-        .eq('id', id);
+      const { error } = await updateWalletApplication(id as string, updateData);
 
       if (error) throw error;
       setApplication({ ...application, ...updateData });
@@ -102,9 +92,7 @@ export default function AdminWalletViewPage() {
       if (filePathOrUrl.startsWith('http') || filePathOrUrl.startsWith('data:')) {
         setActiveImageSrc(filePathOrUrl);
       } else {
-        const { data } = supabase.storage
-          .from('live-photos')
-          .getPublicUrl(filePathOrUrl);
+        const { data } = getPublicPhotoUrl('live-photos', filePathOrUrl);
         
         setActiveImageSrc(data?.publicUrl || fallbackImage);
       }
@@ -148,7 +136,7 @@ export default function AdminWalletViewPage() {
     if (!photo) return null;
     if (photo.startsWith('http') || photo.startsWith('data:')) return photo;
     
-    const { data } = supabase.storage.from('live-photos').getPublicUrl(photo);
+    const { data } = getPublicPhotoUrl('live-photos', photo);
     return data?.publicUrl;
   };
 

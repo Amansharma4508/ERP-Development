@@ -2,8 +2,9 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { useAuth } from '@/lib/auth-context';
-import { Search, Plus, Pencil, Trash2, X, AlertCircle, User as UserIcon, ChevronLeft, ChevronRight, Eye } from 'lucide-react';
+import { Search, Plus, Pencil, Trash2, X, AlertCircle, User as UserIcon, ChevronLeft, ChevronRight, Eye, Check } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+
 interface AdminUser {
   id: string;
   fullName: string;
@@ -28,18 +29,19 @@ export default function UsersPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 20;
 
+  // Multi-select state
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [bulkDeleteLoading, setBulkDeleteLoading] = useState(false);
+
   const [showAddModal, setShowAddModal] = useState(false);
   const [addForm, setAddForm] = useState({ fullName: '', email: '', password: '', phoneNumber: '', amountGiven: 35000 });
   const [addLoading, setAddLoading] = useState(false);
 
-  // User Edit Modal State (Ab ise Wallet View action par trigger karenge)
   const [editingUser, setEditingUser] = useState<AdminUser | null>(null);
   const [editForm, setEditForm] = useState({ fullName: '', email: '', phoneNumber: '', isBlocked: false, amountGiven: 35000 });
   const [editLoading, setEditLoading] = useState(false);
 
-  // Wallet Control View Modal State (Ab ise User Table ke Edit action par trigger karenge)
   const [walletViewUser, setWalletViewUser] = useState<AdminUser | null>(null);
-  const [walletViewLoading, setWalletViewLoading] = useState(false);
 
   const [deletingUser, setDeletingUser] = useState<AdminUser | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
@@ -70,6 +72,7 @@ export default function UsersPage() {
 
   useEffect(() => {
     setCurrentPage(1);
+    setSelectedIds([]);
   }, [search]);
 
   const filtered = users.filter(u =>
@@ -80,6 +83,50 @@ export default function UsersPage() {
   const totalPages = Math.ceil(filtered.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
   const currentUsers = filtered.slice(startIndex, startIndex + itemsPerPage);
+
+  const handleSelectAllCurrentPage = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.checked) {
+      const currentPageIds = currentUsers.map(u => u.id);
+      setSelectedIds(prev => Array.from(new Set([...prev, ...currentPageIds])));
+    } else {
+      const currentPageIds = new Set(currentUsers.map(u => u.id));
+      setSelectedIds(prev => prev.filter(id => !currentPageIds.has(id)));
+    }
+  };
+
+  const handleSelectOne = (id: string) => {
+    setSelectedIds(prev =>
+      prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id]
+    );
+  };
+
+  const isCurrentPageAllSelected = currentUsers.length > 0 && currentUsers.every(u => selectedIds.includes(u.id));
+  const isCurrentPageSomeSelected = currentUsers.some(u => selectedIds.includes(u.id)) && !isCurrentPageAllSelected;
+
+  const handleBulkDelete = async () => {
+    if (selectedIds.length === 0) return;
+    if (!window.confirm(`Are you sure you want to delete ${selectedIds.length} selected user(s)?`)) return;
+
+    setBulkDeleteLoading(true);
+    setError('');
+    try {
+      await Promise.all(
+        selectedIds.map(id =>
+          fetch(`/api/admin/users/${id}`, {
+            method: 'DELETE',
+            headers: { Authorization: `Bearer ${token}` },
+          }).then(res => res.json())
+        )
+      );
+
+      setUsers(prev => prev.filter(u => !selectedIds.includes(u.id)));
+      setSelectedIds([]);
+    } catch (err: any) {
+      setError(err.message || 'Failed to delete selected users');
+    } finally {
+      setBulkDeleteLoading(false);
+    }
+  };
 
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -110,12 +157,6 @@ export default function UsersPage() {
     }
   };
 
-  // Wallet View Open (User Edit action click hone par ab ye Wallet Control view/modal khulega)
-  const openWalletView = (u: AdminUser) => {
-    router.push(`/dashboard/admin/users/${u.id}`);
-  };
-
-  // User Edit Modal Open (Wallet Control view/table ke view action click hone par ab ye User Edit modal khulega)
   const openEdit = (u: AdminUser) => {
     setEditingUser(u);
     setEditForm({ 
@@ -163,6 +204,7 @@ export default function UsersPage() {
       if (!data.success) throw new Error(data.error || 'Failed to delete user');
       setUsers(prev => prev.filter(u => u.id !== deletingUser.id));
       setDeletingUser(null);
+      setSelectedIds(prev => prev.filter(id => id !== deletingUser.id));
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -194,15 +236,33 @@ export default function UsersPage() {
         </div>
       )}
 
-      {/* Search Filter Bar */}
-      <div className="relative max-w-md">
-        <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground" />
-        <input
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-          placeholder="Search users by name or email..."
-          className="w-full pl-11 pr-4 py-3 rounded-2xl border border-border bg-card text-foreground placeholder:text-muted-foreground text-sm shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
-        />
+      {/* Search Filter & Bulk Action Toolbar */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="relative max-w-md w-full">
+          <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground" />
+          <input
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="Search users by name or email..."
+            className="w-full pl-11 pr-4 py-3 rounded-2xl border border-border bg-card text-foreground placeholder:text-muted-foreground text-sm shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+          />
+        </div>
+
+        {/* Bulk Actions Toolbar Pill */}
+        {selectedIds.length > 0 && (
+          <div className="flex items-center gap-3 bg-indigo-50 border border-indigo-200 px-4 py-2 rounded-2xl shadow-sm animate-fade-in">
+            <span className="text-xs font-bold text-indigo-900">
+              {selectedIds.length} selected
+            </span>
+            <button
+              onClick={handleBulkDelete}
+              disabled={bulkDeleteLoading}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-red-600 hover:bg-red-700 text-white text-xs font-semibold transition shadow-sm disabled:opacity-50"
+            >
+              <Trash2 size={14} /> {bulkDeleteLoading ? 'Deleting...' : 'Delete Selected'}
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Table Container with X-Axis Scroll */}
@@ -224,16 +284,33 @@ export default function UsersPage() {
             <table className="w-full text-left border-collapse min-w-[1100px]">
               <thead>
                 <tr className="border-b border-border bg-muted/35 text-muted-foreground text-xs font-semibold uppercase tracking-wider">
-                  <th className="py-4 px-6">Sr. No.</th>
-                  <th className="py-4 px-6">Photo</th>
-                  <th className="py-4 px-6">Full Name</th>
-                  <th className="py-4 px-6">Email Address</th>
-                  <th className="py-4 px-6">Phone Number</th>
-                  <th className="py-4 px-6 text-right">Given (₹)</th>
-                  <th className="py-4 px-6 text-right">Used (₹)</th>
-                  <th className="py-4 px-6 text-right">Balance (₹)</th>
-                  <th className="py-4 px-6 text-center">Status</th>
-                  <th className="py-4 px-6 text-right">Actions</th>
+                  <th className="py-4 px-4 w-12 text-center">
+                    <label className="relative flex items-center justify-center cursor-pointer">
+                      <input
+                        type="checkbox"
+                        aria-label="Select all rows on current page"
+                        checked={isCurrentPageAllSelected}
+                        ref={input => {
+                          if (input) input.indeterminate = isCurrentPageSomeSelected;
+                        }}
+                        onChange={handleSelectAllCurrentPage}
+                        className="peer sr-only"
+                      />
+                      <div className="w-4 h-4 rounded border border-indigo-300 bg-white peer-checked:bg-indigo-600 peer-checked:border-indigo-600 flex items-center justify-center transition shadow-sm">
+                        <Check size={12} className="text-white peer-checked:opacity-100 transition-opacity" />
+                      </div>
+                    </label>
+                  </th>
+                  <th className="py-4 px-4 whitespace-nowrap">Sr. No.</th>
+                  <th className="py-4 px-6 whitespace-nowrap">Photo</th>
+                  <th className="py-4 px-6 whitespace-nowrap">Full Name</th>
+                  <th className="py-4 px-6 whitespace-nowrap">Email Address</th>
+                  <th className="py-4 px-6 whitespace-nowrap">Phone Number</th>
+                  <th className="py-4 px-6 text-right whitespace-nowrap">Given (₹)</th>
+                  <th className="py-4 px-6 text-right whitespace-nowrap">Used (₹)</th>
+                  <th className="py-4 px-6 text-right whitespace-nowrap">Balance (₹)</th>
+                  <th className="py-4 px-6 text-center whitespace-nowrap">Status</th>
+                  <th className="py-4 px-6 text-right whitespace-nowrap">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border text-sm">
@@ -242,10 +319,26 @@ export default function UsersPage() {
                   const given = u.amountGiven ?? 35000;
                   const used = u.amountUsed ?? 0;
                   const balance = given - used;
+                  const isSelected = selectedIds.includes(u.id);
+
                   return (
-                    <tr key={u.id} className="hover:bg-muted/20 transition-colors">
-                      <td className="py-4 px-6 text-muted-foreground font-medium">{absoluteIndex}</td>
-                      <td className="py-4 px-6">
+                    <tr key={u.id} className={`hover:bg-muted/25 transition-colors ${isSelected ? 'bg-indigo-50/50 dark:bg-indigo-950/20' : ''}`}>
+                      <td className="py-4 px-4 text-center">
+                        <label className="relative flex items-center justify-center cursor-pointer">
+                          <input
+                            type="checkbox"
+                            aria-label={`Select row for ${u.fullName}`}
+                            checked={isSelected}
+                            onChange={() => handleSelectOne(u.id)}
+                            className="peer sr-only"
+                          />
+                          <div className="w-4 h-4 rounded border border-indigo-300 bg-white peer-checked:bg-indigo-600 peer-checked:border-indigo-600 flex items-center justify-center transition shadow-sm">
+                            <Check size={12} className="text-white peer-checked:opacity-100 transition-opacity" />
+                          </div>
+                        </label>
+                      </td>
+                      <td className="py-4 px-4 text-muted-foreground font-medium whitespace-nowrap">{absoluteIndex}</td>
+                      <td className="py-4 px-6 whitespace-nowrap">
                         {u.photoUrl ? (
                           <div className="relative w-10 h-10 rounded-full overflow-hidden shadow-sm border border-border">
                             <img 
@@ -271,49 +364,46 @@ export default function UsersPage() {
                           </div>
                         )}
                       </td>
-                      <td className="py-4 px-6 font-semibold text-foreground">{u.fullName}</td>
-                      <td className="py-4 px-6 text-muted-foreground font-medium">{u.email}</td>
-                      <td className="py-4 px-6 text-muted-foreground">{u.phoneNumber || '—'}</td>
-                      <td className="py-4 px-6 text-right font-semibold text-foreground">₹{given.toLocaleString()}</td>
-                      <td className="py-4 px-6 text-right font-semibold text-amber-600">₹{used.toLocaleString()}</td>
-                      <td className={`py-4 px-6 text-right font-bold ${balance >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                      <td className="py-4 px-6 font-semibold text-foreground whitespace-nowrap">{u.fullName}</td>
+                      <td className="py-4 px-6 text-muted-foreground font-medium whitespace-nowrap">{u.email}</td>
+                      <td className="py-4 px-6 text-muted-foreground whitespace-nowrap">{u.phoneNumber || '—'}</td>
+                      <td className="py-4 px-6 text-right font-semibold text-foreground whitespace-nowrap">₹{given.toLocaleString()}</td>
+                      <td className="py-4 px-6 text-right font-semibold text-amber-600 whitespace-nowrap">₹{used.toLocaleString()}</td>
+                      <td className={`py-4 px-6 text-right font-bold whitespace-nowrap ${balance >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
                         ₹{balance.toLocaleString()}
                       </td>
-                      <td className="py-4 px-6 text-center">
+                      <td className="py-4 px-6 text-center whitespace-nowrap">
                         <span className={`inline-flex px-3 py-1 rounded-full text-xs font-semibold ${u.isBlocked ? 'bg-red-50 text-red-600 border border-red-200/50' : 'bg-emerald-50 text-emerald-600 border border-emerald-200/50'}`}>
                           {u.isBlocked ? 'Blocked' : 'Active'}
                         </span>
                       </td>
-                      <td className="py-4 px-6 text-right">
-  <div className="inline-flex items-center gap-1.5 bg-muted/50 p-1 rounded-xl border border-border/60">
-    {/* View Wallet Details */}
-    <button 
-      onClick={() => router.push(`/dashboard/admin/users/${u.id}`)}
-      className="w-8 h-8 rounded-lg hover:bg-card hover:text-indigo-600 flex items-center justify-center text-muted-foreground transition shadow-sm" 
-      title="View Wallet Details"
-    >
-      <Eye size={15} />
-    </button>
-    
-    {/* Edit User Modal Trigger */}
-    <button 
-      onClick={() => openEdit(u)} 
-      className="w-8 h-8 rounded-lg hover:bg-card hover:text-indigo-600 flex items-center justify-center text-muted-foreground transition shadow-sm" 
-      title="Edit User"
-    >
-      <Pencil size={15} />
-    </button>
+                      <td className="py-4 px-6 text-right whitespace-nowrap">
+                        <div className="inline-flex items-center gap-1.5 bg-muted/50 p-1 rounded-xl border border-border/60">
+                          <button 
+                            onClick={() => router.push(`/dashboard/admin-panel/users/${u.id}`)}
+                            className="w-8 h-8 rounded-lg hover:bg-card hover:text-indigo-600 flex items-center justify-center text-muted-foreground transition shadow-sm" 
+                            title="View Wallet Details"
+                          >
+                            <Eye size={15} />
+                          </button>
+                          
+                          <button 
+                            onClick={() => openEdit(u)} 
+                            className="w-8 h-8 rounded-lg hover:bg-card hover:text-indigo-600 flex items-center justify-center text-muted-foreground transition shadow-sm" 
+                            title="Edit User"
+                          >
+                            <Pencil size={15} />
+                          </button>
 
-    {/* Delete User */}
-    <button 
-      onClick={() => { setDeletingUser(u); setError(''); }} 
-      className="w-8 h-8 rounded-lg hover:bg-card hover:text-red-600 flex items-center justify-center text-muted-foreground transition shadow-sm" 
-      title="Delete User"
-    >
-      <Trash2 size={15} />
-    </button>
-  </div>
-</td>
+                          <button 
+                            onClick={() => { setDeletingUser(u); setError(''); }} 
+                            className="w-8 h-8 rounded-lg hover:bg-card hover:text-red-600 flex items-center justify-center text-muted-foreground transition shadow-sm" 
+                            title="Delete User"
+                          >
+                            <Trash2 size={15} />
+                          </button>
+                        </div>
+                      </td>
                     </tr>
                   );
                 })}
@@ -414,66 +504,7 @@ export default function UsersPage() {
         </div>
       )}
 
-      {/* Wallet View Modal (Ye ab User Table ke action/edit par khulega) */}
-      {walletViewUser && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
-          <div className="bg-card rounded-3xl shadow-2xl border border-border w-full max-w-lg overflow-hidden">
-            <div className="flex items-center justify-between p-6 border-b border-border bg-muted/25">
-              <div>
-                <h2 className="text-xl font-bold text-foreground">Wallet Control & Details</h2>
-                <p className="text-xs text-muted-foreground mt-0.5">Viewing financial summary for {walletViewUser.fullName}</p>
-              </div>
-              <button onClick={() => setWalletViewUser(null)} className="w-9 h-9 rounded-2xl hover:bg-muted flex items-center justify-center text-muted-foreground transition">
-                <X size={18} />
-              </button>
-            </div>
-            <div className="p-6 space-y-6">
-              <div className="grid grid-cols-3 gap-4 text-center">
-                <div className="p-4 rounded-2xl bg-muted/30 border border-border">
-                  <p className="text-xs text-muted-foreground font-medium uppercase">Given</p>
-                  <p className="text-lg font-bold text-foreground mt-1">₹{walletViewUser.amountGiven ?? 35000}</p>
-                </div>
-                <div className="p-4 rounded-2xl bg-muted/30 border border-border">
-                  <p className="text-xs text-muted-foreground font-medium uppercase">Used</p>
-                  <p className="text-lg font-bold text-amber-600 mt-1">₹{walletViewUser.amountUsed ?? 0}</p>
-                </div>
-                <div className="p-4 rounded-2xl bg-muted/30 border border-border">
-                  <p className="text-xs text-muted-foreground font-medium uppercase">Balance</p>
-                  <p className="text-lg font-bold text-emerald-600 mt-1">₹{(walletViewUser.amountGiven ?? 35000) - (walletViewUser.amountUsed ?? 0)}</p>
-                </div>
-              </div>
-
-              <div className="space-y-3 pt-2 border-t border-border">
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">User Name:</span>
-                  <span className="font-semibold text-foreground">{walletViewUser.fullName}</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Email:</span>
-                  <span className="font-semibold text-foreground">{walletViewUser.email}</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Phone:</span>
-                  <span className="font-semibold text-foreground">{walletViewUser.phoneNumber || 'N/A'}</span>
-                </div>
-              </div>
-
-              <div className="pt-2">
-                <button onClick={() => { 
-                  const targetUser = walletViewUser;
-                  setWalletViewUser(null);
-                  openEdit(targetUser); // Yahan se aap chaho to direct Edit form khol sakte ho
-                }}
-                  className="w-full py-3 rounded-2xl font-semibold text-white bg-indigo-600 hover:bg-indigo-700 transition shadow-md shadow-indigo-600/20">
-                  Edit User Details & Wallet Limit
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Edit User Modal (Ye ab Wallet Control / View action par khulega) */}
+      {/* Edit User Modal */}
       {editingUser && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
           <div className="bg-card rounded-3xl shadow-2xl border border-border w-full max-w-lg overflow-hidden">

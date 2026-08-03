@@ -2,13 +2,16 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { createClient } from '@supabase/supabase-js';
 import { Edit, X, Trash2, ChevronLeft, ChevronRight } from 'lucide-react';
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL || '',
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
-);
+import CustomCheckbox from '@/components/CustomCheckbox';
+import {
+  getWalletApplicationsCount,
+  getWalletApplicationsRange,
+  deleteWalletApplication,
+  updateWalletApplication,
+  getProfileAmountById,
+  updateProfileAmountById,
+} from '@/lib/supabase/db';
 
 const ITEMS_PER_PAGE = 20;
 
@@ -19,6 +22,9 @@ export default function WalletControlPage() {
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
+
+  // Selection state for Checkboxes
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
   // Edit Modal States
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -36,15 +42,9 @@ export default function WalletControlPage() {
   const fetchApplications = async () => {
     setLoading(true);
 
-    // Pehle total count nikalo taaki pata chale DB mein kitne records hain
-    const { count, error: countError } = await supabase
-      .from('wallet_applications')
-      .select('*', { count: 'exact', head: true });
-
+    const { count, error: countError } = await getWalletApplicationsCount();
     console.log('Total records in DB (count):', count, countError);
 
-    // Ab sab records ko range/pagination ke through fetch karo
-    // (Supabase default se sirf 1000 rows return karta hai agar range specify na karo)
     let allData: any[] = [];
     const pageSize = 1000;
     let from = 0;
@@ -52,11 +52,7 @@ export default function WalletControlPage() {
 
     while (keepFetching) {
       const to = from + pageSize - 1;
-      const { data, error } = await supabase
-        .from('wallet_applications')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .range(from, to);
+      const { data, error } = await getWalletApplicationsRange(from, to);
 
       if (error) {
         console.error('Fetch error:', error);
@@ -75,46 +71,90 @@ export default function WalletControlPage() {
       }
     }
 
-    console.log('Records actually fetched:', allData.length);
-
     setApplications(allData);
     setLoading(false);
   };
 
-  // Handle Delete
+  // Handle Single Delete (Backend + Frontend)
   const handleDelete = async (id: string) => {
     const confirmed = window.confirm(
-      'Kya aap sach mein is application ko delete karna chahte hain? Ye action wapas nahi ho sakta.'
+      'Kya aap sach mein is application ko delete karna chahte hain? Ye action database se bhi remove kar dega.'
     );
     if (!confirmed) return;
 
     setDeletingId(id);
     try {
-      const { error } = await supabase
-        .from('wallet_applications')
-        .delete()
-        .eq('id', id);
+      const { error } = await deleteWalletApplication(id);
+      if (error) throw new Error(error.message || JSON.stringify(error));
 
-      if (error) {
-        throw new Error(error.message || JSON.stringify(error));
-      }
-
-      // Local state se bhi turant remove karo
       setApplications((prev) => prev.filter((app) => app.id !== id));
+      setSelectedIds((prev) => prev.filter((itemId) => itemId !== id));
 
-      // Agar current page ka last item delete ho gaya aur ye pehla page nahi hai, ek page peeche jao
       const newTotalPages = Math.ceil((applications.length - 1) / ITEMS_PER_PAGE);
       if (currentPage > newTotalPages && currentPage > 1) {
         setCurrentPage(currentPage - 1);
       }
 
-      alert('Application deleted successfully!');
+      alert('Application deleted successfully from database!');
     } catch (err: any) {
       console.error('Error deleting application:', err);
       alert(`Failed to delete application: ${err.message || 'Unknown error'}`);
     } finally {
       setDeletingId(null);
     }
+  };
+
+  // Handle Bulk Delete (Backend + Frontend)
+  const handleBulkDelete = async () => {
+    if (selectedIds.length === 0) return;
+    const confirmed = window.confirm(
+      `Kya aap sach mein ${selectedIds.length} selected applications ko database se delete karna chahte hain?`
+    );
+    if (!confirmed) return;
+
+    try {
+      for (const id of selectedIds) {
+        const { error } = await deleteWalletApplication(id);
+        if (error) console.error(`Failed to delete ID ${id}:`, error);
+      }
+
+      setApplications((prev) => prev.filter((app) => !selectedIds.includes(app.id)));
+      setSelectedIds([]);
+      alert('Selected applications deleted successfully from database!');
+    } catch (err: any) {
+      console.error('Error bulk deleting:', err);
+      alert('Failed to delete selected applications.');
+    }
+  };
+
+  // Checkbox Selection Logic
+  const paginatedApplications = applications.slice(
+    (currentPage - 1) * ITEMS_PER_PAGE,
+    currentPage * ITEMS_PER_PAGE
+  );
+
+  const isAllCurrentPageSelected = 
+    paginatedApplications.length > 0 && 
+    paginatedApplications.every((app) => selectedIds.includes(app.id));
+
+  const isSomeCurrentPageSelected = 
+    selectedIds.length > 0 && !isAllCurrentPageSelected;
+
+  const handleSelectAllCurrentPage = () => {
+    if (isAllCurrentPageSelected) {
+      const pageIds = paginatedApplications.map(app => app.id);
+      setSelectedIds(prev => prev.filter(id => !pageIds.includes(id)));
+    } else {
+      const pageIds = paginatedApplications.map(app => app.id);
+      const combined = Array.from(new Set([...selectedIds, ...pageIds]));
+      setSelectedIds(combined);
+    }
+  };
+
+  const handleSelectOne = (id: string) => {
+    setSelectedIds(prev => 
+      prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id]
+    );
   };
 
   // Handle Edit Form Submission
@@ -128,7 +168,6 @@ export default function WalletControlPage() {
       const amountToAdd = Number(addAmount || 0);
       const newAppTotal = currentAppAmount + amountToAdd;
 
-      // History log banao
       let updatedHistory = selectedApp.amount_history || [];
       if (amountToAdd > 0) {
         const newLog = {
@@ -138,7 +177,6 @@ export default function WalletControlPage() {
         updatedHistory = [...updatedHistory, newLog];
       }
 
-      // Step 1: wallet_applications table update karo (fields + amount + history)
       const updateData: any = {
         full_name: selectedApp.full_name,
         blood_group: selectedApp.blood_group,
@@ -149,64 +187,18 @@ export default function WalletControlPage() {
         amount_history: updatedHistory,
       };
 
-      const { data: appUpdateResult, error: appError } = await supabase
-        .from('wallet_applications')
-        .update(updateData)
-        .eq('id', selectedApp.id)
-        .select();
+      const { error: appError } = await updateWalletApplication(selectedApp.id, updateData);
+      if (appError) throw new Error(appError.message || JSON.stringify(appError));
 
-      console.log('wallet_applications update result:', appUpdateResult, appError);
+      if (amountToAdd > 0 && selectedApp.user_id) {
+        const { data: profileData, error: fetchError } = await getProfileAmountById(selectedApp.user_id);
+        if (fetchError) throw new Error(`Profile fetch failed: ${fetchError.message}`);
 
-      if (appError) {
-        throw new Error(appError.message || JSON.stringify(appError));
-      }
+        const currentProfileAmount = Number(profileData?.amount_given || 0);
+        const newProfileTotal = currentProfileAmount + amountToAdd;
 
-      // Step 2: agar amount add hua hai, profiles table bhi sync karo
-      if (amountToAdd > 0) {
-        console.log('selectedApp.user_id:', selectedApp.user_id);
-
-        if (!selectedApp.user_id) {
-          console.warn('SKIPPED profile update: user_id is missing on this application record.');
-          alert(
-            'Application update ho gaya, lekin profile ka amount update nahi hua kyunki is application mein user_id set nahi hai.'
-          );
-        } else {
-          const { data: profileData, error: fetchError } = await supabase
-            .from('profiles')
-            .select('amount_given')
-            .eq('id', selectedApp.user_id)
-            .single();
-
-          console.log('profiles fetch result:', profileData, fetchError);
-
-          if (fetchError) {
-            throw new Error(`Profile fetch failed: ${fetchError.message}`);
-          }
-
-          const currentProfileAmount = Number(profileData?.amount_given || 0);
-          const newProfileTotal = currentProfileAmount + amountToAdd;
-
-          const { data: profileUpdateResult, error: profileError } = await supabase
-            .from('profiles')
-            .update({ amount_given: newProfileTotal })
-            .eq('id', selectedApp.user_id)
-            .select();
-
-          console.log('profiles update result:', profileUpdateResult, profileError);
-
-          if (profileError) {
-            throw new Error(`Profile update failed: ${profileError.message}`);
-          }
-
-          if (!profileUpdateResult || profileUpdateResult.length === 0) {
-            console.warn(
-              'Profile update returned no rows. Ye RLS policy issue ho sakta hai (UPDATE permission missing on profiles table).'
-            );
-            alert(
-              'Application update ho gaya, lekin profile ka amount update nahi ho paya. Isko RLS policy issue lagta hai — Supabase mein profiles table pe UPDATE policy check karo.'
-            );
-          }
-        }
+        const { error: profileError } = await updateProfileAmountById(selectedApp.user_id, newProfileTotal);
+        if (profileError) throw new Error(`Profile update failed: ${profileError.message}`);
       }
 
       alert('Application and Wallet updated successfully!');
@@ -221,12 +213,7 @@ export default function WalletControlPage() {
     }
   };
 
-  // Pagination calculations
   const totalPages = Math.max(1, Math.ceil(applications.length / ITEMS_PER_PAGE));
-  const paginatedApplications = applications.slice(
-    (currentPage - 1) * ITEMS_PER_PAGE,
-    currentPage * ITEMS_PER_PAGE
-  );
 
   const goToPage = (page: number) => {
     if (page < 1 || page > totalPages) return;
@@ -235,7 +222,17 @@ export default function WalletControlPage() {
 
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-6">
-      <h1 className="text-2xl font-bold text-gray-900">Wallet Applications Control</h1>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <h1 className="text-2xl font-bold text-gray-900">Wallet Applications Control</h1>
+        {selectedIds.length > 0 && (
+          <button
+            onClick={handleBulkDelete}
+            className="flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl text-sm font-medium transition shadow-sm"
+          >
+            <Trash2 size={16} /> Delete Selected ({selectedIds.length})
+          </button>
+        )}
+      </div>
 
       {loading ? (
         <div className="text-center py-10">Loading applications...</div>
@@ -245,6 +242,15 @@ export default function WalletControlPage() {
             <table className="w-full text-left border-collapse">
               <thead className="bg-gray-50 border-b border-gray-200 text-xs font-bold text-gray-500 uppercase">
                 <tr>
+                  <th className="p-4 w-10">
+                    <CustomCheckbox
+                      checked={isAllCurrentPageSelected}
+                      indeterminate={isSomeCurrentPageSelected}
+                      onChange={handleSelectAllCurrentPage}
+                      ariaLabel="Select all on current page"
+                    />
+                  </th>
+                  <th className="p-4 w-16 text-center">Sr. No.</th>
                   <th className="p-4">Name</th>
                   <th className="p-4">Status</th>
                   <th className="p-4">District</th>
@@ -252,45 +258,57 @@ export default function WalletControlPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200 text-sm">
-                {paginatedApplications.map((app) => (
-                  <tr key={app.id} className="hover:bg-gray-50 transition">
-                    <td className="p-4 font-semibold text-gray-800">{app.full_name || app.name || 'N/A'}</td>
-                    <td className="p-4">
-                      <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${
-                        app.status === 'approved' ? 'bg-green-50 text-green-700' : 'bg-amber-50 text-amber-700'
-                      }`}>
-                        {app.status || 'Pending'}
-                      </span>
-                    </td>
-                    <td className="p-4 text-gray-600">{app.district || '—'}</td>
-                    <td className="p-4 flex items-center justify-center gap-2">
-                      <button 
-                        onClick={() => { 
-                          setSelectedApp(app); 
-                          setAddAmount(''); 
-                          setIsEditModalOpen(true); 
-                        }}
-                        className="p-1.5 bg-amber-50 text-amber-600 rounded-md hover:bg-amber-100 transition"
-                        title="Quick Edit"
-                      >
-                        <Edit size={16} />
-                      </button>
+                {paginatedApplications.map((app, index) => {
+                  const isSelected = selectedIds.includes(app.id);
+                  const serialNumber = (currentPage - 1) * ITEMS_PER_PAGE + index + 1;
+                  return (
+                    <tr key={app.id} className={`hover:bg-gray-50 transition ${isSelected ? 'bg-gray-50/80' : ''}`}>
+                      <td className="p-4">
+                        <CustomCheckbox
+                          checked={isSelected}
+                          onChange={() => handleSelectOne(app.id)}
+                          ariaLabel={`Select ${app.full_name || 'application'}`}
+                        />
+                      </td>
+                      <td className="p-4 text-center font-medium text-gray-500">{serialNumber}</td>
+                      <td className="p-4 font-semibold text-gray-800">{app.full_name || app.name || 'N/A'}</td>
+                      <td className="p-4">
+                        <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${
+                          app.status === 'approved' ? 'bg-green-50 text-green-700' : 'bg-amber-50 text-amber-700'
+                        }`}>
+                          {app.status || 'Pending'}
+                        </span>
+                      </td>
+                      <td className="p-4 text-gray-600">{app.district || '—'}</td>
+                      <td className="p-4 flex items-center justify-center gap-2">
+                        <button 
+                          onClick={() => { 
+                            setSelectedApp(app); 
+                            setAddAmount(''); 
+                            setIsEditModalOpen(true); 
+                          }}
+                          className="p-1.5 bg-amber-50 text-amber-600 rounded-md hover:bg-amber-100 transition"
+                          title="Quick Edit"
+                        >
+                          <Edit size={16} />
+                        </button>
 
-                      <button
-                        onClick={() => handleDelete(app.id)}
-                        disabled={deletingId === app.id}
-                        className="p-1.5 bg-red-50 text-red-600 rounded-md hover:bg-red-100 transition disabled:opacity-50"
-                        title="Delete Application"
-                      >
-                        <Trash2 size={16} />
-                      </button>
-                    </td>
-                  </tr>
-                ))}
+                        <button
+                          onClick={() => handleDelete(app.id)}
+                          disabled={deletingId === app.id}
+                          className="p-1.5 bg-red-50 text-red-600 rounded-md hover:bg-red-100 transition disabled:opacity-50"
+                          title="Delete Application"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
 
                 {paginatedApplications.length === 0 && (
                   <tr>
-                    <td colSpan={4} className="p-6 text-center text-gray-500">
+                    <td colSpan={6} className="p-6 text-center text-gray-500">
                       Koi application nahi mili.
                     </td>
                   </tr>

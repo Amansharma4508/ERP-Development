@@ -1,7 +1,8 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { CreditCard, Search, Eye, CheckCircle2, AlertCircle } from 'lucide-react';
+import { CreditCard, Search, Eye, CheckCircle2, AlertCircle, Trash2 } from 'lucide-react';
+import CustomCheckbox from '@/components/CustomCheckbox'; // Aapka custom checkbox component
 
 interface CardPrintUserItem {
   id: string;
@@ -27,6 +28,15 @@ export default function CardFulfillmentPage() {
   const [filterStatus, setFilterStatus] = useState<'all' | 'assigned' | 'in-progress' | 'printed' | 'pending'>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedUser, setSelectedUser] = useState<CardPrintUserItem | null>(null);
+  
+  // Multi-select state
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [toast, setToast] = useState<{ msg: string; type: 'success' | 'error' } | null>(null);
+
+  const showToast = (msg: string, type: 'success' | 'error' = 'success') => {
+    setToast({ msg, type });
+    setTimeout(() => setToast(null), 3000);
+  };
 
   const fetchCardItems = useCallback(async () => {
     try {
@@ -42,6 +52,10 @@ export default function CardFulfillmentPage() {
     fetchCardItems();
   }, [fetchCardItems]);
 
+  useEffect(() => {
+    setSelectedIds([]);
+  }, [searchQuery, filterStatus]);
+
   const filteredItems = cardItems.filter((item) => {
     const matchesSearch = 
       item.user_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -50,6 +64,69 @@ export default function CardFulfillmentPage() {
     return matchesSearch && matchesStatus;
   });
 
+  // Selection Logic for Current List
+  const isAllSelected = filteredItems.length > 0 && filteredItems.every((i) => selectedIds.includes(i.id));
+  const isSomeSelected = selectedIds.length > 0 && !isAllSelected;
+
+  const handleSelectAll = () => {
+    if (isAllSelected) {
+      const pageIds = filteredItems.map(i => i.id);
+      setSelectedIds(prev => prev.filter(id => !pageIds.includes(id)));
+    } else {
+      const pageIds = filteredItems.map(i => i.id);
+      setSelectedIds(Array.from(new Set([...selectedIds, ...pageIds])));
+    }
+  };
+
+  const handleSelectOne = (id: string) => {
+    setSelectedIds(prev => 
+      prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id]
+    );
+  };
+
+  // Single Delete Handler
+  const handleDelete = async (id: string) => {
+    if (!confirm('Kya aap sach mein is card item ko delete karna chahte hain?')) return;
+
+    try {
+      const res = await fetch(`/api/logistics/card-items?id=${id}`, {
+        method: 'DELETE',
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) throw new Error(data.error || 'Failed to delete');
+
+      setCardItems(prev => prev.filter(item => item.id !== id));
+      setSelectedIds(prev => prev.filter(itemId => itemId !== id));
+      showToast('Card item deleted successfully!');
+    } catch (err: any) {
+      console.error(err);
+      showToast(err.message || 'Failed to delete', 'error');
+    }
+  };
+
+  // Bulk Delete Handler
+  const handleBulkDelete = async () => {
+    if (selectedIds.length === 0) return;
+    if (!confirm(`Kya aap sach mein ${selectedIds.length} selected card items ko delete karna chahte hain?`)) return;
+
+    try {
+      const res = await fetch('/api/logistics/card-items', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: selectedIds }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) throw new Error(data.error || 'Failed to delete selected items');
+
+      setCardItems(prev => prev.filter(item => !selectedIds.includes(item.id)));
+      setSelectedIds([]);
+      showToast('Selected card items deleted successfully!');
+    } catch (err: any) {
+      console.error(err);
+      showToast(err.message || 'Failed to delete selected items', 'error');
+    }
+  };
+
   const totalAssigned = cardItems.length;
   const printedCount = cardItems.filter(i => i.status === 'printed').length;
   const inProgressCount = cardItems.filter(i => i.status === 'in-progress').length;
@@ -57,9 +134,26 @@ export default function CardFulfillmentPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-foreground">Card Fulfillment Tracking</h1>
-        <p className="text-muted-foreground text-sm mt-1">Monitor live beneficiary card printing status updated by Vendor B partners</p>
+      {toast && (
+        <div className={`fixed top-6 right-6 z-50 px-5 py-3 rounded-xl shadow-lg text-white text-sm font-medium flex items-center gap-2 ${toast.type === 'success' ? 'bg-emerald-500' : 'bg-red-500'}`}>
+          {toast.type === 'success' ? <CheckCircle2 size={16} /> : <AlertCircle size={16} />}
+          {toast.msg}
+        </div>
+      )}
+
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-foreground">Card Fulfillment Tracking</h1>
+          <p className="text-muted-foreground text-sm mt-1">Monitor live beneficiary card printing status updated by Vendor B partners</p>
+        </div>
+        {selectedIds.length > 0 && (
+          <button
+            onClick={handleBulkDelete}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white font-semibold shadow-sm transition text-sm"
+          >
+            <Trash2 size={16} /> Delete Selected ({selectedIds.length})
+          </button>
+        )}
       </div>
 
       {/* Analytics Cards */}
@@ -110,30 +204,47 @@ export default function CardFulfillmentPage() {
         </div>
       </div>
 
-      {/* User Wise Table (Read-Only Admin View) */}
+      {/* Table */}
       <div className="bg-card rounded-2xl border border-border shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border bg-muted/60 text-muted-foreground text-xs uppercase font-semibold">
+                <th className="px-4 py-3 w-12 text-center">
+                  <CustomCheckbox
+                    checked={isAllSelected}
+                    indeterminate={isSomeSelected}
+                    onChange={handleSelectAll}
+                    ariaLabel="Select all"
+                  />
+                </th>
                 <th className="px-5 py-3 text-left">User Name</th>
                 <th className="px-5 py-3 text-left">Phone</th>
                 <th className="px-5 py-3 text-left">Card Number</th>
                 <th className="px-5 py-3 text-left">Vendor B Partner</th>
                 <th className="px-5 py-3 text-left">Status</th>
                 <th className="px-5 py-3 text-center">Digital Preview</th>
+                <th className="px-5 py-3 text-center">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
               {filteredItems.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="text-center py-10 text-muted-foreground">No records found for this view.</td>
+                  <td colSpan={8} className="text-center py-10 text-muted-foreground">No records found for this view.</td>
                 </tr>
               ) : (
                 filteredItems.map((user) => {
                   const badge = STATUS_BADGES[user.status] || STATUS_BADGES.assigned;
+                  const isSelected = selectedIds.includes(user.id);
                   return (
-                    <tr key={user.id} className="hover:bg-muted/40 transition">
+                    <tr key={user.id} className={`hover:bg-muted/40 transition ${isSelected ? 'bg-muted/60' : ''}`}>
+                      <td className="px-4 py-3 text-center">
+                        <CustomCheckbox
+                          checked={isSelected}
+                          onChange={() => handleSelectOne(user.id)}
+                          ariaLabel={`Select ${user.user_name}`}
+                        />
+                      </td>
                       <td className="px-5 py-3 font-semibold text-foreground">{user.user_name}</td>
                       <td className="px-5 py-3 text-xs text-muted-foreground">{user.phone || 'N/A'}</td>
                       <td className="px-5 py-3 font-mono text-xs font-bold text-purple-700">{user.card_number}</td>
@@ -154,6 +265,15 @@ export default function CardFulfillmentPage() {
                         ) : (
                           <span className="text-xs text-muted-foreground italic font-medium">Printing Incomplete</span>
                         )}
+                      </td>
+                      <td className="px-5 py-3 text-center">
+                        <button 
+                          onClick={() => handleDelete(user.id)} 
+                          className="p-1.5 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition inline-flex items-center justify-center"
+                          title="Delete Item"
+                        >
+                          <Trash2 size={14} />
+                        </button>
                       </td>
                     </tr>
                   );

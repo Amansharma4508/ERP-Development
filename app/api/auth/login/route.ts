@@ -99,12 +99,9 @@
 //   }
 // }
 import { NextRequest } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
 import { generateToken } from '@/lib/auth'; 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseServiceRole = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-
-const supabaseAdmin = createClient(supabaseUrl, supabaseServiceRole);
+import { signInWithPassword } from '@/lib/supabase/auth';
+import { supabaseAdmin } from '@/lib/supabase/server';
 
 // export async function POST(request: NextRequest) {
 //   try {
@@ -229,8 +226,8 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // 1. Supabase Auth
-    const { data: authData, error: authError } = await supabaseAdmin.auth.signInWithPassword({
+    // 1. Supabase Auth (must go through the shared auth wrapper)
+    const { data: authData, error: authError } = await signInWithPassword({
       email,
       password,
     });
@@ -244,53 +241,88 @@ export async function POST(request: NextRequest) {
 
     const session = authData.session;
     const authUser = authData.user;
-    const cleanEmail = authUser.email?.trim().toLowerCase();
+    const cleanEmail = authUser.email?.trim().toLowerCase() || '';
 
     let role = 'user';
     let fullName = 'ERP User';
 
-    // 2. CHECK 1: Pehle 'admin_members' table check karo
-    const { data: adminMember } = await supabaseAdmin
+    // 2. CHECK 1: admin_members lookup
+    const { data: adminMember, error: adminMemberError } = await supabaseAdmin
       .from('admin_members')
       .select('*')
-      .ilike('email', cleanEmail || '');
+      .ilike('email', cleanEmail)
+      .maybeSingle();
 
-    if (adminMember && adminMember.length > 0) {
+    if (adminMemberError) {
+      console.error('Admin member lookup failed:', adminMemberError.message);
+    }
+
+    if (adminMember) {
       role = 'admin';
-      fullName = adminMember[0].full_name || adminMember[0].name || 'Super Admin';
+      fullName = adminMember.full_name || adminMember.name || 'Super Admin';
     } else {
-      // 3. CHECK 2: Agar admin_members me na mile, toh 'admin_invites' table check karo
-      const { data: inviteMember } = await supabaseAdmin
+      // 3. CHECK 2: admin_invites lookup
+      const { data: inviteMember, error: inviteError } = await supabaseAdmin
         .from('admin_invites')
         .select('*')
-        .ilike('email', cleanEmail || '')
+        .ilike('email', cleanEmail)
         .maybeSingle();
 
+      if (inviteError) {
+        console.error('Admin invite lookup failed:', inviteError.message);
+      }
+
       if (inviteMember) {
-        role = inviteMember.role || 'admin'; // Jo role assigned hoga (jaise logistics, admin, etc.)
+        role = inviteMember.role || 'admin';
         fullName = inviteMember.name || 'Team Member';
       } else {
-        // 4. CHECK 3: Fallback to normal profiles
-       const { data: profile } = await supabaseAdmin
-  .from('profiles')
-  .select('full_name, account_type')
-  .eq('id', authUser.id)
-  .maybeSingle();
+        // 4. CHECK 3: profiles fallback
+        const { data: profile, error: profileError } = await supabaseAdmin
+          .from('profiles')
+          .select('full_name, account_type')
+          .eq('id', authUser.id)
+          .maybeSingle();
 
-fullName = profile?.full_name || 'ERP User';
-// 👈 YAHAN FIX HAI: Profiles table ka account_type ab role mein properly assign hoga
-role = profile?.account_type ? profile.account_type.toLowerCase() : 'user';
+        if (profileError) {
+          console.error('Profile lookup failed:', profileError.message);
+        }
+
+        fullName = profile?.full_name || 'ERP User';
+        role = profile?.account_type ? String(profile.account_type).toLowerCase() : 'user';
       }
     }
+
+    let walletOnboardingStatus: 'none' | 'pending' | 'in-progress' | 'approved' = 'none';
+    if (role === 'user' || role === 'wallet_user') {
+      const { data: application, error: applicationError } = await supabaseAdmin
+        .from('wallet_applications')
+        .select('status')
+        .eq('user_id', authUser.id)
+        .maybeSingle();
+
+      if (applicationError) {
+        console.error('Wallet status lookup failed:', applicationError.message);
+      }
+
+      if (!application) {
+        walletOnboardingStatus = 'pending';
+      } else if (application.status === 'approved') {
+        walletOnboardingStatus = 'approved';
+      } else {
+        walletOnboardingStatus = 'in-progress';
+      }
+    }
+
     // 5. Apna khud ka JWT generate karo (role properly embedded hoga isme)
     const appToken = generateToken({
       id: authUser.id,
       userId: authUser.id,
       email: authUser.email || '',
       fullName,
-      role: role as any,   // 'admin' | 'user' | 'doctor' | etc.
+      role: role as any,
     });
-    // 5. Final Response
+
+    // 6. Final Response
     return new Response(JSON.stringify({
       success: true,
       data: {
@@ -302,16 +334,17 @@ role = profile?.account_type ? profile.account_type.toLowerCase() : 'user';
           role,
           isApproved: true,
         },
-        walletOnboardingStatus: 'approved',
+        walletOnboardingStatus,
       },
     }), {
       status: 200,
       headers: { 'Content-Type': 'application/json' },
     });
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Login Route Error:', error);
-    return new Response(JSON.stringify({ error: 'Login failed internally' }), {
+    const message = error instanceof Error ? error.message : 'Login failed internally';
+    return new Response(JSON.stringify({ error: message }), {
       status: 500,
       headers: { 'Content-Type': 'application/json' },
     });

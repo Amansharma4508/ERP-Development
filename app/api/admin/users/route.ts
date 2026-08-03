@@ -1,11 +1,11 @@
 import { NextRequest } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
 import { successResponse, errorResponse, toJson } from '@/lib/api-utils';
+import { createAdminUser, deleteAdminUser } from '@/lib/supabase/auth';
+import { getProfilesForUserList, insertProfile } from '@/lib/supabase/db';
+import { getPublicPhotoUrl } from '@/lib/supabase/storage';
+import { supabaseAdmin } from '@/lib/supabase/server';
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+const supabase = supabaseAdmin;
 
 async function requireAdmin(request: NextRequest) {
   return true;
@@ -19,11 +19,7 @@ export async function GET(request: NextRequest) {
       return toJson(errorResponse('Unauthorized', 401));
     }
 
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('id, full_name, email, phone_number, photo_url, account_type, is_blocked, created_at, amount_given, amount_used')
-      .eq('account_type', 'user')
-      .order('created_at', { ascending: false });
+    const { data, error } = await getProfilesForUserList();
 
     if (error) {
       console.error('🔴 Fetch users failed:', error.message);
@@ -38,9 +34,7 @@ export async function GET(request: NextRequest) {
       }
 
       if (finalPhotoUrl && !finalPhotoUrl.startsWith('http')) {
-        const { data: publicUrlData } = supabase.storage
-          .from('live-photos')
-          .getPublicUrl(finalPhotoUrl);
+        const { data: publicUrlData } = getPublicPhotoUrl('live-photos', finalPhotoUrl);
         
         finalPhotoUrl = publicUrlData.publicUrl;
       }
@@ -79,7 +73,7 @@ export async function POST(request: NextRequest) {
       return toJson(errorResponse('Email, password and full name are required', 400));
     }
 
-    const { data: authData, error: authError } = await supabase.auth.admin.createUser({
+    const { data: authData, error: authError } = await createAdminUser({
       email,
       password,
       email_confirm: true,
@@ -99,20 +93,18 @@ export async function POST(request: NextRequest) {
 
     const initialAmount = Number(amountGiven) || 35000;
 
-    const { error: profileError } = await supabase
-      .from('profiles')
-      .insert({
-        id: authData.user.id,
-        full_name: fullName,
-        account_type: 'user',
-        email,
-        phone_number: phoneNumber || null,
-        amount_given: initialAmount, // ✅ Default 35000 or custom saved
-        amount_used: 0,             // ✅ Default 0
-      });
+    const { error: profileError } = await insertProfile({
+      id: authData.user.id,
+      full_name: fullName,
+      account_type: 'user',
+      email,
+      phone_number: phoneNumber || null,
+      amount_given: initialAmount,
+      amount_used: 0,
+    });
 
     if (profileError) {
-      await supabase.auth.admin.deleteUser(authData.user.id);
+      await deleteAdminUser(authData.user.id);
       console.error('🔴 Profile insert failed:', profileError.message);
       return toJson(errorResponse('Failed to create user profile', 500));
     }

@@ -1,13 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { createClient } from '@supabase/supabase-js';
 import { UserPlus, Loader2, Check, AlertCircle, Copy } from 'lucide-react';
-
-// Initialize Supabase client for browser
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
+import { getSession } from '@/lib/supabase/auth';
 
 export default function InviteAdminForm() {
   const [email, setEmail] = useState('');
@@ -24,7 +19,7 @@ export default function InviteAdminForm() {
     
     try {
       // 1. Get fresh session token directly from Supabase
-      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      const { data: { session }, error: sessionError } = await getSession();
       
       if (sessionError || !session?.access_token) {
         throw new Error('Unauthorized: No active session found. Please login again.');
