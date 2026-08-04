@@ -16,12 +16,16 @@ function mapAppointment(row: any) {
     time: row.appointment_time,
     status: row.status,
     notes: row.notes,
+    symptoms: row.symptoms,
+    medicalHistory: row.medical_history,
+    bloodGroup: row.blood_group,
+    allergies: row.allergies,
+    prescriptionUrls: row.prescription_urls || [], // Array of file URLs
     consultationFee: Number(row.consultation_fee),
     createdAt: row.created_at,
   };
 }
 
-// GET /api/appointments
 export async function GET(request: NextRequest) {
   const token = getTokenFromRequest(request);
   if (!token) return toJson(errorResponse('Unauthorized', 401));
@@ -39,7 +43,7 @@ export async function GET(request: NextRequest) {
     .from('appointments')
     .select(`
       id, patient_id, doctor_id, specialization, appointment_date, appointment_time,
-      status, notes, consultation_fee, created_at,
+      status, notes, symptoms, medical_history, blood_group, allergies, prescription_urls, consultation_fee, created_at,
       patient:profiles!appointments_patient_id_fkey ( full_name, email, phone_number ),
       doctor:profiles!appointments_doctor_id_fkey ( full_name )
     `)
@@ -49,7 +53,7 @@ export async function GET(request: NextRequest) {
   if (payload.role === 'doctor') {
     query = query.eq('doctor_id', userId);
   } else if (payload.role === 'admin') {
-    // sees all
+    // all
   } else {
     query = query.eq('patient_id', userId);
   }
@@ -57,42 +61,10 @@ export async function GET(request: NextRequest) {
   if (status) query = query.eq('status', status);
   if (date) query = query.eq('appointment_date', date);
 
-  const today = new Date().toISOString().split('T')[0];
-  if (view === 'upcoming') {
-    query = query.gte('appointment_date', today).in('status', ['pending', 'confirmed']);
-  } else if (view === 'past') {
-    query = query.or(`appointment_date.lt.${today},status.eq.completed`);
-  } else if (view === 'cancelled') {
-    query = query.in('status', ['cancelled', 'rejected']);
-  }
-
   const { data, error } = await query;
   if (error) return toJson(errorResponse(error.message, 500));
 
-  // ── AUTO-CANCEL: agar pending appointment ka date+time nikal chuka hai
-  // aur doctor ne confirm/reject nahi kiya, to usse cancelled kar do ──
-  const now = new Date();
-  const expiredPendingIds: string[] = [];
-
-  (data ?? []).forEach((row: any) => {
-    if (row.status === 'pending') {
-      const apptDateTime = new Date(`${row.appointment_date}T${row.appointment_time}`);
-      if (apptDateTime < now) {
-        expiredPendingIds.push(row.id);
-        row.status = 'cancelled'; // isi response mein turant reflect ho jaye
-      }
-    }
-  });
-
-  if (expiredPendingIds.length > 0) {
-    await supabaseAdmin
-      .from('appointments')
-      .update({ status: 'cancelled' })
-      .in('id', expiredPendingIds);
-  }
-
   let result = (data ?? []).map(mapAppointment);
-
   if (patientName) {
     const q = patientName.toLowerCase();
     result = result.filter((a) => a.patientName.toLowerCase().includes(q));
@@ -101,7 +73,6 @@ export async function GET(request: NextRequest) {
   return toJson(successResponse(result));
 }
 
-// POST /api/appointments - book a new appointment
 export async function POST(request: NextRequest) {
   const token = getTokenFromRequest(request);
   if (!token) return toJson(errorResponse('Unauthorized', 401));
@@ -109,42 +80,85 @@ export async function POST(request: NextRequest) {
   if (!payload) return toJson(errorResponse('Invalid token', 401));
 
   const userId = payload.userId || payload.id;
-  const body = await request.json();
-  const { doctorId, date, time, notes } = body;
 
-  if (!doctorId || !date || !time) {
-    return toJson(errorResponse('doctorId, date, and time are required', 400));
+  try {
+    const formData = await request.formData();
+    const doctorId = formData.get('doctorId')?.toString();
+    const date = formData.get('date')?.toString();
+    const time = formData.get('time')?.toString();
+    const notes = formData.get('notes')?.toString() || '';
+    const symptoms = formData.get('symptoms')?.toString() || '';
+    const medicalHistory = formData.get('medicalHistory')?.toString() || '';
+    const bloodGroup = formData.get('bloodGroup')?.toString() || '';
+    const allergies = formData.get('allergies')?.toString() || '';
+
+    // Multiple files capture
+    const files = formData.getAll('prescriptions') as File[];
+    const prescriptionUrls: string[] = [];
+
+    for (const file of files) {
+      if (file && file.size > 0) {
+        const fileBytes = await file.arrayBuffer();
+        const fileName = `${userId}-${Date.now()}-${file.name.replace(/\s+/g, '_')}`;
+
+        const { data: uploadData, error: uploadErr } = await supabaseAdmin.storage
+          .from('prescriptions')
+          .upload(fileName, fileBytes, {
+            contentType: file.type,
+            upsert: false,
+          });
+
+        if (!uploadErr && uploadData) {
+          const { data: publicUrlData } = supabaseAdmin.storage
+            .from('prescriptions')
+            .getPublicUrl(fileName);
+          
+          prescriptionUrls.push(publicUrlData.publicUrl);
+        }
+      }
+    }
+
+    if (!doctorId || !date || !time) {
+      return toJson(errorResponse('doctorId, date, and time are required', 400));
+    }
+
+    const { data: doctor, error: doctorErr } = await supabaseAdmin
+      .from('doctor_profiles')
+      .select('id, specialization, consultation_fee')
+      .eq('id', doctorId)
+      .single();
+
+    if (doctorErr || !doctor) return toJson(errorResponse('Doctor not found', 404));
+
+    const { data: inserted, error: insertErr } = await supabaseAdmin
+      .from('appointments')
+      .insert({
+        patient_id: userId,
+        doctor_id: doctorId,
+        specialization: doctor.specialization,
+        appointment_date: date,
+        appointment_time: time,
+        status: 'pending',
+        notes: notes,
+        symptoms: symptoms,
+        medical_history: medicalHistory,
+        blood_group: bloodGroup,
+        allergies: allergies,
+        prescription_urls: prescriptionUrls, // Saving array of URLs
+        consultation_fee: doctor.consultation_fee,
+      })
+      .select(`
+        id, patient_id, doctor_id, specialization, appointment_date, appointment_time,
+        status, notes, symptoms, medical_history, blood_group, allergies, prescription_urls, consultation_fee, created_at,
+        patient:profiles!appointments_patient_id_fkey ( full_name, phone_number ),
+        doctor:profiles!appointments_doctor_id_fkey ( full_name )
+      `)
+      .single();
+
+    if (insertErr) return toJson(errorResponse(insertErr.message, 500));
+
+    return toJson(successResponse(mapAppointment(inserted), 201));
+  } catch (err: any) {
+    return toJson(errorResponse(err.message || 'Internal Server Error', 500));
   }
-
-  const { data: doctor, error: doctorErr } = await supabaseAdmin
-    .from('doctor_profiles')
-    .select('id, specialization, consultation_fee')
-    .eq('id', doctorId)
-    .single();
-
-  if (doctorErr || !doctor) return toJson(errorResponse('Doctor not found', 404));
-
-  const { data: inserted, error: insertErr } = await supabaseAdmin
-    .from('appointments')
-    .insert({
-      patient_id: userId,
-      doctor_id: doctorId,
-      specialization: doctor.specialization,
-      appointment_date: date,
-      appointment_time: time,
-      status: 'pending',
-      notes: notes || '',
-      consultation_fee: doctor.consultation_fee,
-    })
-    .select(`
-      id, patient_id, doctor_id, specialization, appointment_date, appointment_time,
-      status, notes, consultation_fee, created_at,
-      patient:profiles!appointments_patient_id_fkey ( full_name, phone_number ),
-      doctor:profiles!appointments_doctor_id_fkey ( full_name )
-    `)
-    .single();
-
-  if (insertErr) return toJson(errorResponse(insertErr.message, 500));
-
-  return toJson(successResponse(mapAppointment(inserted), 201));
 }

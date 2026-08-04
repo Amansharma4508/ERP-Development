@@ -192,10 +192,23 @@ export default function DoctorDashboardMain() {
       setIsBulkDeleting(false);
     }
   };
-
+const [successMessage, setSuccessMessage] = useState<string | null>(null);
+const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const handleAddPatientSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user?.id || !token) return;
+
+    // Frontend Duplication Check
+    const isDuplicate = patients.some(
+      p => 
+        p.name.trim().toLowerCase() === newPatient.name.trim().toLowerCase() &&
+        (newPatient.phone ? p.phone === newPatient.phone : false)
+    );
+
+    if (isDuplicate) {
+      alert('This patient with the same name and phone number is already added!');
+      return;
+    }
 
     setSubmitting(true);
     try {
@@ -220,11 +233,14 @@ export default function DoctorDashboardMain() {
       });
 
       const result = await response.json();
-      if (!response.ok) {
-        alert('Error adding patient: ' + (result?.error || 'Unknown error'));
+     if (!response.ok) {
+        // Purana alert hata kar yeh lagayein:
+        setErrorMessage(result?.error || 'A patient with this phone number is already registered.');
+        setTimeout(() => {
+          setErrorMessage(null);
+        }, 5000); // 5 seconds ke baad automatic gayab ho jayega
         return;
       }
-
       setIsAddModalOpen(false);
       setNewPatient({
         name: '',
@@ -238,6 +254,13 @@ export default function DoctorDashboardMain() {
         currentSymptoms: '',
         prescription: ''
       });
+      
+      // Success message trigger
+      setSuccessMessage('Patient added successfully!');
+      setTimeout(() => {
+        setSuccessMessage(null);
+      }, 4000); // 4 seconds ke baad gayab ho jayega
+
       await fetchAcceptedPatients();
     } catch (err) {
       console.error('Add patient error:', err);
@@ -248,7 +271,26 @@ export default function DoctorDashboardMain() {
   };
 
   return (
+      
     <div className="p-6 max-w-7xl mx-auto space-y-6">
+      {/* Success Notification Banner */}
+      {successMessage && (
+        <div className="bg-emerald-600 border border-emerald-700 text-white px-4 py-3 rounded-xl shadow-sm flex items-center justify-between transition-all duration-300">
+          <div className="flex items-center gap-2">
+            <Check className="w-5 h-5 text-white" />
+            <span className="text-sm font-medium">{successMessage}</span>
+          </div>
+        </div>
+      )}
+      {/* Warning Notification Banner for Duplication/Errors */}
+      {errorMessage && (
+        <div className="bg-amber-500 border border-amber-600 text-white px-4 py-3 rounded-xl shadow-sm flex items-center justify-between transition-all duration-300">
+          <div className="flex items-center gap-2">
+            <X className="w-5 h-5 text-white" />
+            <span className="text-sm font-medium">{errorMessage}</span>
+          </div>
+        </div>
+      )}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-2xl font-bold text-foreground">My Patients</h1>

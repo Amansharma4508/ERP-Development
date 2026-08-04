@@ -4,7 +4,7 @@ import { useAuth } from '@/lib/auth-context';
 import { useEffect, useState, useCallback } from 'react';
 import {
   CalendarDays, Clock, CheckCircle, XCircle, Plus, DollarSign,
-  Ban, Search, Target,
+  Ban, Search, Target, FileText, Activity, Droplets, AlertTriangle,
 } from 'lucide-react';
 
 interface Appointment {
@@ -18,6 +18,11 @@ interface Appointment {
   notes: string;
   consultationFee: number;
   createdAt: string;
+  // --- New Health Record Fields ---
+  symptoms?: string;
+  medicalHistory?: string;
+  bloodGroup?: string;
+  allergies?: string;
 }
 
 export default function MyAppointmentsPage() {
@@ -31,6 +36,16 @@ export default function MyAppointmentsPage() {
 
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [toast, setToast] = useState<{ msg: string; type: 'success' | 'error' } | null>(null);
+
+  // State for Health Records modal/form update (if needed)
+  const [selectedAppt, setSelectedAppt] = useState<Appointment | null>(null);
+  const [showHealthModal, setShowHealthModal] = useState(false);
+  const [healthData, setHealthData] = useState({
+    symptoms: '',
+    medicalHistory: '',
+    bloodGroup: '',
+    allergies: '',
+  });
 
   const showToast = (msg: string, type: 'success' | 'error' = 'success') => {
     setToast({ msg, type });
@@ -74,6 +89,32 @@ export default function MyAppointmentsPage() {
 
       setAppointments(prev => prev.map(a => (a.id === id ? data.data : a)));
       showToast('Appointment cancelled.');
+    } catch (err: any) {
+      showToast(err.message, 'error');
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  // Handler to update health records for an appointment
+  const handleUpdateHealthRecord = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedAppt) return;
+    setActionLoading(selectedAppt.id);
+
+    try {
+      const res = await fetch(`/api/appointments/${selectedAppt.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify(healthData),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to update health records');
+
+      setAppointments(prev => prev.map(a => (a.id === selectedAppt.id ? data.data : a)));
+      showToast('Health records updated successfully.');
+      setShowHealthModal(false);
+      setSelectedAppt(null);
     } catch (err: any) {
       showToast(err.message, 'error');
     } finally {
@@ -142,7 +183,7 @@ export default function MyAppointmentsPage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-foreground">My Appointments</h1>
-          <p className="text-muted-foreground text-sm mt-1">Track your booked medical consultations and history.</p>
+          <p className="text-muted-foreground text-sm mt-1">Track your booked medical consultations and health records.</p>
         </div>
         <a
           href="/dashboard/doctors"
@@ -205,7 +246,7 @@ export default function MyAppointmentsPage() {
       </div>
 
       {loading ? (
-        <div className="space-y-3">{[...Array(3)].map((_, i) => <div key={i} className="animate-pulse bg-muted h-24 rounded-2xl" />)}</div>
+        <div className="space-y-3">{[...Array(3)].map((_, i) => <div key={i} className="animate-pulse bg-muted h-32 rounded-2xl" />)}</div>
       ) : filteredAppointments.length === 0 ? (
         <div className="text-center py-16 bg-card rounded-2xl border border-border">
           <CalendarDays size={48} className="mx-auto mb-3 opacity-20 text-muted-foreground" />
@@ -215,42 +256,171 @@ export default function MyAppointmentsPage() {
       ) : (
         <div className="space-y-3">
           {filteredAppointments.map(appt => (
-            <div key={appt.id} className="bg-card border border-border rounded-2xl p-5 flex flex-col sm:flex-row sm:items-center gap-4 hover:border-indigo-200 transition shadow-sm">
-              <div className="flex items-start gap-4 flex-1">
-                <div className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 bg-indigo-50 text-indigo-600">
-                  <CalendarDays size={22} />
+            <div key={appt.id} className="bg-card border border-border rounded-2xl p-5 flex flex-col gap-4 hover:border-indigo-200 transition shadow-sm">
+              <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+                <div className="flex items-start gap-4 flex-1">
+                  <div className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 bg-indigo-50 text-indigo-600">
+                    <CalendarDays size={22} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <p className="font-semibold text-foreground text-base">Dr. {appt.doctorName}</p>
+                      <span className={`text-xs font-semibold px-2.5 py-0.5 rounded-full capitalize ${STATUS_STYLE[appt.status] || 'bg-gray-100 text-gray-800'}`}>
+                        {appt.status}
+                      </span>
+                    </div>
+                    <p className="text-sm text-muted-foreground">{appt.specialization || 'General Consultation'}</p>
+                    
+                    <div className="flex flex-wrap gap-4 mt-2 text-sm text-muted-foreground">
+                      <span className="flex items-center gap-1"><CalendarDays size={13} /> {appt.date}</span>
+                      <span className="flex items-center gap-1"><Clock size={13} /> {appt.time}</span>
+                      <span className="flex items-center gap-1"><DollarSign size={13} /> ${appt.consultationFee}</span>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1.5">{STATUS_HELP[appt.status]}</p>
+                    {appt.notes && <p className="text-xs text-muted-foreground mt-1 italic">Notes: "{appt.notes}"</p>}
+                  </div>
                 </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <p className="font-semibold text-foreground text-base">Dr. {appt.doctorName}</p>
-                    <span className={`text-xs font-semibold px-2.5 py-0.5 rounded-full capitalize ${STATUS_STYLE[appt.status] || 'bg-gray-100 text-gray-800'}`}>
-                      {appt.status}
-                    </span>
-                  </div>
-                  <p className="text-sm text-muted-foreground">{appt.specialization || 'General Consultation'}</p>
-                  <div className="flex flex-wrap gap-4 mt-2 text-sm text-muted-foreground">
-                    <span className="flex items-center gap-1"><CalendarDays size={13} /> {appt.date}</span>
-                    <span className="flex items-center gap-1"><Clock size={13} /> {appt.time}</span>
-                    <span className="flex items-center gap-1"><DollarSign size={13} /> ${appt.consultationFee}</span>
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-1.5">{STATUS_HELP[appt.status]}</p>
-                  {appt.notes && <p className="text-xs text-muted-foreground mt-1 italic">"{appt.notes}"</p>}
+
+                {/* Action Buttons */}
+                <div className="flex sm:flex-col gap-2 flex-shrink-0">
+                  {(appt.status === 'pending' || appt.status === 'confirmed') && (
+                    <button
+                      onClick={() => handleCancel(appt.id)}
+                      disabled={!!actionLoading}
+                      className="flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl border border-red-300 text-red-600 hover:bg-red-50 text-sm font-medium transition disabled:opacity-50"
+                    >
+                      <Ban size={14} /> Cancel
+                    </button>
+                  )}
+                  <button
+                    onClick={() => {
+                      setSelectedAppt(appt);
+                      setHealthData({
+                        symptoms: appt.symptoms || '',
+                        medicalHistory: appt.medicalHistory || '',
+                        bloodGroup: appt.bloodGroup || '',
+                        allergies: appt.allergies || '',
+                      });
+                      setShowHealthModal(true);
+                    }}
+                    className="flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl bg-indigo-50 text-indigo-600 hover:bg-indigo-100 text-sm font-medium transition"
+                  >
+                    <FileText size={14} /> {appt.symptoms ? 'Edit Health Info' : 'Add Health Info'}
+                  </button>
                 </div>
               </div>
 
-              {(appt.status === 'pending' || appt.status === 'confirmed') && (
-                <div className="flex gap-2 flex-shrink-0">
-                  <button
-                    onClick={() => handleCancel(appt.id)}
-                    disabled={!!actionLoading}
-                    className="flex items-center gap-1.5 px-4 py-2 rounded-xl border border-red-300 text-red-600 hover:bg-red-50 text-sm font-medium transition disabled:opacity-50"
-                  >
-                    <Ban size={14} /> Cancel Booking
-                  </button>
+              {/* Health Records Section Inside Card */}
+              {(appt.symptoms || appt.medicalHistory || appt.bloodGroup || appt.allergies) && (
+                <div className="mt-2 pt-3 border-t border-border grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 bg-muted/50 p-3 rounded-xl text-xs">
+                  <div>
+                    <span className="font-semibold flex items-center gap-1 text-foreground mb-0.5"><Activity size={13} className="text-indigo-600" /> Symptoms:</span>
+                    <span className="text-muted-foreground">{appt.symptoms || 'None specified'}</span>
+                  </div>
+                  <div>
+                    <span className="font-semibold flex items-center gap-1 text-foreground mb-0.5"><FileText size={13} className="text-indigo-600" /> Medical History:</span>
+                    <span className="text-muted-foreground">{appt.medicalHistory || 'None specified'}</span>
+                  </div>
+                  <div>
+                    <span className="font-semibold flex items-center gap-1 text-foreground mb-0.5"><Droplets size={13} className="text-red-500" /> Blood Group:</span>
+                    <span className="text-muted-foreground">{appt.bloodGroup || 'Not specified'}</span>
+                  </div>
+                  <div>
+                    <span className="font-semibold flex items-center gap-1 text-foreground mb-0.5"><AlertTriangle size={13} className="text-amber-500" /> Allergies:</span>
+                    <span className="text-muted-foreground">{appt.allergies || 'None specified'}</span>
+                  </div>
                 </div>
               )}
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Health Info Modal */}
+      {showHealthModal && selectedAppt && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-card border border-border rounded-2xl w-full max-w-lg p-6 shadow-xl space-y-4">
+            <div className="flex justify-between items-center">
+              <h3 className="text-lg font-bold text-foreground">Health Records / Details</h3>
+              <button onClick={() => setShowHealthModal(false)} className="text-muted-foreground hover:text-foreground">
+                <XCircle size={20} />
+              </button>
+            </div>
+            <p className="text-xs text-muted-foreground">Provide relevant health information for Dr. {selectedAppt.doctorName}.</p>
+
+            <form onSubmit={handleUpdateHealthRecord} className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-foreground mb-1">Symptoms / Chief Complaints</label>
+                <textarea
+                  rows={2}
+                  value={healthData.symptoms}
+                  onChange={e => setHealthData({ ...healthData, symptoms: e.target.value })}
+                  placeholder="e.g., Fever, headache for 2 days..."
+                  className="w-full p-2.5 rounded-xl border border-border bg-muted text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-foreground mb-1">Medical History</label>
+                <textarea
+                  rows={2}
+                  value={healthData.medicalHistory}
+                  onChange={e => setHealthData({ ...healthData, medicalHistory: e.target.value })}
+                  placeholder="e.g., Hypertension, diabetes, past surgeries..."
+                  className="w-full p-2.5 rounded-xl border border-border bg-muted text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-foreground mb-1">Blood Group</label>
+                  <select
+                    value={healthData.bloodGroup}
+                    onChange={e => setHealthData({ ...healthData, bloodGroup: e.target.value })}
+                    className="w-full p-2.5 rounded-xl border border-border bg-muted text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                  >
+                    <option value="">Select Blood Group</option>
+                    <option value="A+">A+</option>
+                    <option value="A-">A-</option>
+                    <option value="B+">B+</option>
+                    <option value="B-">B-</option>
+                    <option value="AB+">AB+</option>
+                    <option value="AB-">AB-</option>
+                    <option value="O+">O+</option>
+                    <option value="O-">O-</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-foreground mb-1">Allergies</label>
+                  <input
+                    type="text"
+                    value={healthData.allergies}
+                    onChange={e => setHealthData({ ...healthData, allergies: e.target.value })}
+                    placeholder="e.g., Penicillin, dust..."
+                    className="w-full p-2.5 rounded-xl border border-border bg-muted text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                  />
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowHealthModal(false)}
+                  className="px-4 py-2 rounded-xl border border-border text-muted-foreground hover:bg-muted text-sm font-medium"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={actionLoading === selectedAppt.id}
+                  className="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium transition disabled:opacity-50"
+                >
+                  {actionLoading === selectedAppt.id ? 'Saving...' : 'Save Health Info'}
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
     </div>

@@ -5,6 +5,7 @@ import { useEffect, useState, useCallback } from 'react';
 import {
   Search, Star, X, CheckCircle, CalendarDays, Award,
   DollarSign, FileBadge, Mail, Clock, CreditCard, Wallet, Smartphone,
+  Activity, FileText, Droplets, AlertTriangle, Upload
 } from 'lucide-react';
 
 interface Doctor {
@@ -40,11 +41,16 @@ export default function DoctorsPage() {
   // Booking & Payment Step Modal
   const [selectedDoctor, setSelectedDoctor] = useState<Doctor | null>(null);
   const [bookingStep, setBookingStep] = useState<'form' | 'payment'>('form');
-  
-  // Booking Form Fields
+
+  // Booking Form Fields (Updated with Health Records)
   const [bookingDate, setBookingDate] = useState('');
   const [bookingTime, setBookingTime] = useState('');
   const [bookingNotes, setBookingNotes] = useState('');
+  const [bookingSymptoms, setBookingSymptoms] = useState('');
+  const [medicalHistory, setMedicalHistory] = useState('');
+  const [bloodGroup, setBloodGroup] = useState('');
+  const [allergies, setAllergies] = useState('');
+  const [prescriptionFile, setPrescriptionFile] = useState<File | null>(null);
 
   // Payment Fields
   const [paymentMethod, setPaymentMethod] = useState<'card' | 'upi' | 'wallet'>('card');
@@ -52,7 +58,7 @@ export default function DoctorsPage() {
   const [cardExpiry, setCardExpiry] = useState('');
   const [cardCvv, setCardCvv] = useState('');
   const [upiId, setUpiId] = useState('');
-  
+
   // Wallet State (Allotted default ₹35,000)
   const [walletBalance, setWalletBalance] = useState<number>(35000);
 
@@ -127,25 +133,36 @@ export default function DoctorsPage() {
     try {
       setSubmitting(true);
 
-      // If wallet is selected, deduct locally or via API
       if (paymentMethod === 'wallet') {
         setWalletBalance(prev => prev - selectedDoctor.consultationFee);
+      }
+
+      // Using FormData to support file upload along with health records
+      const formDataToSend = new FormData();
+      formDataToSend.append('doctorId', selectedDoctor.id);
+      formDataToSend.append('date', bookingDate);
+      formDataToSend.append('time', bookingTime);
+      formDataToSend.append('notes', bookingNotes);
+      formDataToSend.append('symptoms', bookingSymptoms);
+      formDataToSend.append('medicalHistory', medicalHistory);
+      formDataToSend.append('bloodGroup', bloodGroup);
+      formDataToSend.append('allergies', allergies);
+      formDataToSend.append('paymentMethod', paymentMethod);
+      formDataToSend.append('amountPaid', selectedDoctor.consultationFee.toString());
+
+      if (prescriptionFile) {
+        // FIXED: key must be 'prescriptions' (plural) — backend reads it via
+        // formData.getAll('prescriptions'). It was 'prescription' (singular)
+        // before, so the backend never found the file and silently uploaded nothing.
+        formDataToSend.append('prescriptions', prescriptionFile);
       }
 
       const res = await fetch('/api/appointments', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({
-          doctorId: selectedDoctor.id,
-          date: bookingDate,
-          time: bookingTime,
-          notes: bookingNotes,
-          paymentMethod,
-          amountPaid: selectedDoctor.consultationFee,
-        }),
+        body: formDataToSend,
       });
 
       const data = await res.json();
@@ -157,6 +174,11 @@ export default function DoctorsPage() {
       setBookingDate('');
       setBookingTime('');
       setBookingNotes('');
+      setBookingSymptoms('');
+      setMedicalHistory('');
+      setBloodGroup('');
+      setAllergies('');
+      setPrescriptionFile(null);
       setCardNumber('');
       setCardExpiry('');
       setCardCvv('');
@@ -379,8 +401,8 @@ export default function DoctorsPage() {
 
       {/* Booking & Payment Modal */}
       {selectedDoctor && (
-        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-card border border-border rounded-2xl w-full max-w-md p-6 space-y-5 shadow-xl max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-card border border-border rounded-2xl w-full max-w-lg p-6 space-y-5 shadow-xl max-h-[90vh] overflow-y-auto my-8">
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-bold text-foreground">
                 {bookingStep === 'form' ? 'Book Appointment' : 'Payment Details'}
@@ -400,36 +422,123 @@ export default function DoctorsPage() {
 
             {bookingStep === 'form' ? (
               <form onSubmit={handleProceedToPayment} className="space-y-4">
-                <div>
-                  <label className="block text-xs font-semibold text-muted-foreground uppercase mb-1">Appointment Date</label>
-                  <input
-                    type="date"
-                    required
-                    value={bookingDate}
-                    min={new Date().toISOString().split('T')[0]}
-                    onChange={e => setBookingDate(e.target.value)}
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-border bg-muted text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-                  />
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-semibold text-muted-foreground uppercase mb-1">Appointment Date</label>
+                    <input
+                      type="date"
+                      required
+                      value={bookingDate}
+                      min={new Date().toISOString().split('T')[0]}
+                      onChange={e => setBookingDate(e.target.value)}
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-border bg-muted text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-muted-foreground uppercase mb-1">Appointment Time</label>
+                    <input
+                      type="time"
+                      required
+                      value={bookingTime}
+                      onChange={e => setBookingTime(e.target.value)}
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-border bg-muted text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                    />
+                  </div>
                 </div>
 
+                {/* Symptoms / Chief Complaints */}
                 <div>
-                  <label className="block text-xs font-semibold text-muted-foreground uppercase mb-1">Appointment Time</label>
-                  <input
-                    type="time"
-                    required
-                    value={bookingTime}
-                    onChange={e => setBookingTime(e.target.value)}
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-border bg-muted text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-muted-foreground uppercase mb-1">Notes / Symptoms</label>
+                  <label className="block text-xs font-semibold text-muted-foreground uppercase mb-1 flex items-center gap-1">
+                    <Activity size={14} className="text-indigo-600" /> Symptoms / Chief Complaints
+                  </label>
                   <textarea
-                    rows={3}
+                    rows={2}
+                    value={bookingSymptoms}
+                    onChange={e => setBookingSymptoms(e.target.value)}
+                    placeholder="e.g., Fever, headache for 2 days..."
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-border bg-muted text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                  />
+                </div>
+
+                {/* Medical History */}
+                <div>
+                  <label className="block text-xs font-semibold text-muted-foreground uppercase mb-1 flex items-center gap-1">
+                    <FileText size={14} className="text-indigo-600" /> Medical History
+                  </label>
+                  <textarea
+                    rows={2}
+                    value={medicalHistory}
+                    onChange={e => setMedicalHistory(e.target.value)}
+                    placeholder="e.g., Hypertension, diabetes, past surgeries..."
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-border bg-muted text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                  />
+                </div>
+
+                {/* Blood Group & Allergies Row */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-semibold text-muted-foreground uppercase mb-1 flex items-center gap-1">
+                      <Droplets size={14} className="text-red-500" /> Blood Group
+                    </label>
+                    <select
+                      value={bloodGroup}
+                      onChange={e => setBloodGroup(e.target.value)}
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-border bg-muted text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                    >
+                      <option value="">Select Blood Group</option>
+                      <option value="A+">A+</option>
+                      <option value="A-">A-</option>
+                      <option value="B+">B+</option>
+                      <option value="B-">B-</option>
+                      <option value="AB+">AB+</option>
+                      <option value="AB-">AB-</option>
+                      <option value="O+">O+</option>
+                      <option value="O-">O-</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-muted-foreground uppercase mb-1 flex items-center gap-1">
+                      <AlertTriangle size={14} className="text-amber-500" /> Allergies
+                    </label>
+                    <input
+                      type="text"
+                      value={allergies}
+                      onChange={e => setAllergies(e.target.value)}
+                      placeholder="e.g., Penicillin, dust..."
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-border bg-muted text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                    />
+                  </div>
+                </div>
+
+                {/* Prescription/Report File Upload */}
+                <div>
+                  <label className="block text-xs font-semibold text-muted-foreground uppercase mb-1 flex items-center gap-1">
+                    <Upload size={14} className="text-indigo-600" /> Upload Prescription / Reports (Optional)
+                  </label>
+                  <input
+                    type="file"
+                    accept=".pdf,.jpg,.jpeg,.png"
+                    onChange={e => {
+                      if (e.target.files && e.target.files[0]) {
+                        setPrescriptionFile(e.target.files[0]);
+                      }
+                    }}
+                    className="w-full text-xs text-muted-foreground file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-indigo-50 file:text-indigo-600 hover:file:bg-indigo-100 cursor-pointer"
+                  />
+                  {prescriptionFile && (
+                    <p className="text-xs text-emerald-600 mt-1">Selected: {prescriptionFile.name}</p>
+                  )}
+                </div>
+
+                {/* Additional Notes */}
+                <div>
+                  <label className="block text-xs font-semibold text-muted-foreground uppercase mb-1">Additional Notes</label>
+                  <input
+                    type="text"
                     value={bookingNotes}
                     onChange={e => setBookingNotes(e.target.value)}
-                    placeholder="Describe your symptoms..."
+                    placeholder="Any other specific requests..."
                     className="w-full px-3.5 py-2.5 rounded-xl border border-border bg-muted text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring"
                   />
                 </div>
@@ -453,7 +562,7 @@ export default function DoctorsPage() {
             ) : (
               <div className="space-y-4">
                 <p className="text-xs font-semibold text-muted-foreground uppercase">Select Payment Method</p>
-                
+
                 <div className="grid grid-cols-3 gap-2">
                   <button
                     type="button"

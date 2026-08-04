@@ -1,52 +1,43 @@
-import { NextRequest } from 'next/server';
-import { orders } from '@/lib/store';
-import { successResponse, errorResponse, toJson } from '@/lib/api-utils';
-import { verifyToken } from '@/lib/auth';
+import { NextResponse } from "next/server";
+import { supabase } from "@/lib/supabase"; // Aapka existing Supabase client
 
-// GET /api/orders
-export async function GET(request: NextRequest) {
-  const token = request.headers.get('authorization')?.split(' ')[1];
-  if (!token) return toJson(errorResponse('Unauthorized', 401));
-  const payload = verifyToken(token);
-  if (!payload || payload.role === 'user') return toJson(errorResponse('Forbidden', 403));
+export async function POST(request: Request) {
+  try {
+    const body = await request.json();
+    const { patientId, items, totalAmount } = body;
 
-  const { searchParams } = new URL(request.url);
-  const status = searchParams.get('status');
-  const result = status ? orders.filter((o) => o.status === status) : orders;
+    // Validation
+    if (!patientId || !items || items.length === 0 || !totalAmount) {
+      return NextResponse.json(
+        { success: false, error: "Missing required order fields (patientId, items, totalAmount)." },
+        { status: 400 }
+      );
+    }
 
-  return toJson(successResponse(result));
-}
+    // Supabase mein real data insert karna
+    const { data, error } = await supabase
+      .from('orders')
+      .insert([
+        {
+          patient_id: patientId,
+          items: items, // JSONB format mein cart/medicines items
+          total_amount: totalAmount,
+          status: 'pending',
+          created_at: new Date().toISOString()
+        }
+      ])
+      .select();
 
-// POST /api/orders - create order
-export async function POST(request: NextRequest) {
-  const token = request.headers.get('authorization')?.split(' ')[1];
-  if (!token) return toJson(errorResponse('Unauthorized', 401));
-  const payload = verifyToken(token);
-  if (!payload || payload.role === 'user') return toJson(errorResponse('Forbidden', 403));
+    if (error) {
+      throw error;
+    }
 
-  const body = await request.json();
-  const { supplierName, items } = body;
-
-  if (!supplierName || !items?.length) {
-    return toJson(errorResponse('supplierName and items are required', 400));
+    return NextResponse.json(
+      { success: true, message: "Order placed successfully!", data },
+      { status: 201 }
+    );
+  } catch (error: any) {
+    console.error("Supabase Order API Error:", error);
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
-
-  const totalAmount = items.reduce(
-    (sum: number, i: { quantity: number; unitPrice: number }) => sum + i.quantity * i.unitPrice,
-    0,
-  );
-
-  const newOrder = {
-    id: `ord${Date.now()}`,
-    orderId: `ORD-${new Date().getFullYear()}-${String(orders.length + 1).padStart(3, '0')}`,
-    supplierId: `sup${Date.now()}`,
-    supplierName,
-    items,
-    status: 'pending' as const,
-    totalAmount,
-    orderDate: new Date().toISOString().split('T')[0],
-  };
-
-  orders.push(newOrder);
-  return toJson(successResponse(newOrder, 201));
 }

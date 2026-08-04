@@ -7,7 +7,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import {
   CalendarDays, Clock, HeartPulse, Wallet, ShoppingCart, AlertTriangle,
   Stethoscope, TrendingUp, TrendingDown, DollarSign, Target, CheckCircle,
-  CalendarCheck, Package, BookOpen, ArrowRight, Activity, Database, ShieldCheck, X,
+  CalendarCheck, Package, BookOpen, ArrowRight, Activity, Database, ShieldCheck, Store, X, Settings, Tags,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { authenticatedFetch } from '@/lib/api';
@@ -18,6 +18,7 @@ interface Stats {
   pendingAppointments?: number; confirmedAppointments?: number; completedAppointments?: number;
   pendingOrders?: number; lowStockItems?: number; totalInventoryItems?: number;
   revenue?: number; expenses?: number; profit?: number; totalDoctors?: number;
+  totalOrders?: number; activeDeliveries?: number; totalProducts?: number; storeRevenue?: number;
   recentAppointments?: any[];
 }
 
@@ -187,6 +188,16 @@ function DashboardContent() {
         </div>
       )}
 
+      {/* Stats — E-Commerce */}
+      {user?.role === 'ecommerce' && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <StatCard label="Total Orders" value={stats.totalOrders ?? 0} Icon={Package} gradient="stat-indigo" sub="Customer orders" />
+          <StatCard label="Store Products" value={stats.totalProducts ?? 0} Icon={Tags} gradient="stat-violet" sub="Active catalog items" />
+          <StatCard label="Store Revenue" value={`₹${(stats.storeRevenue ?? 0).toLocaleString()}`} Icon={TrendingUp} gradient="stat-emerald" sub="Total earnings" />
+          <StatCard label="Pending Processing" value={stats.pendingOrders ?? 0} Icon={ShoppingCart} gradient="stat-cyan" sub="Orders to fulfill" />
+        </div>
+      )}
+
       {/* Stats — Doctor */}
       {user?.role === 'doctor' && (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -216,11 +227,13 @@ function DashboardContent() {
 
       {/* Bottom grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Recent Appointments */}
+        {/* Recent Appointments / Activity */}
         <div className="bg-card rounded-2xl border border-border p-6">
           <div className="flex items-center justify-between mb-5">
-            <h3 className="font-semibold text-foreground">Recent Appointments</h3>
-            <Link href="/dashboard/appointments" className="text-xs font-medium text-primary hover:underline flex items-center gap-1">
+            <h3 className="font-semibold text-foreground">
+              {user?.role === 'ecommerce' ? 'Recent Store Activity' : 'Recent Appointments'}
+            </h3>
+            <Link href={user?.role === 'ecommerce' ? '/dashboard/user-panel/shop' : '/dashboard/appointments'} className="text-xs font-medium text-primary hover:underline flex items-center gap-1">
               View all <ArrowRight size={12} />
             </Link>
           </div>
@@ -247,8 +260,8 @@ function DashboardContent() {
             </div>
           ) : (
             <div className="text-center py-8 text-muted-foreground">
-              <CalendarDays size={36} className="mx-auto mb-2 opacity-30" />
-              <p className="text-sm">No appointments yet</p>
+              <Store size={36} className="mx-auto mb-2 opacity-30" />
+              <p className="text-sm">No recent orders or store activity yet</p>
             </div>
           )}
         </div>
@@ -273,6 +286,24 @@ function DashboardContent() {
               <Link href="/dashboard/doctors" className="flex flex-col items-center gap-2 p-4 rounded-xl border border-border hover:border-violet-300 hover:bg-violet-50 transition group">
                 <Stethoscope size={24} className="text-muted-foreground group-hover:text-violet-600" />
                 <span className="text-sm font-medium text-foreground group-hover:text-violet-600 text-center">Find Doctors</span>
+              </Link>
+            </>)}
+            {user?.role === 'ecommerce' && (<>
+              <Link href="/dashboard/user-panel/shop" className="flex flex-col items-center gap-2 p-4 rounded-xl border border-border hover:border-emerald-300 hover:bg-emerald-50 transition group">
+                <Store size={24} className="text-muted-foreground group-hover:text-emerald-600" />
+                <span className="text-sm font-medium text-foreground group-hover:text-emerald-600 text-center">Open Store / Shop</span>
+              </Link>
+              <Link href="/dashboard/orders" className="flex flex-col items-center gap-2 p-4 rounded-xl border border-border hover:border-indigo-300 hover:bg-indigo-50 transition group">
+                <Package size={24} className="text-muted-foreground group-hover:text-indigo-600" />
+                <span className="text-sm font-medium text-foreground group-hover:text-indigo-600 text-center">Manage Orders</span>
+              </Link>
+              <Link href="/dashboard/inventory" className="flex flex-col items-center gap-2 p-4 rounded-xl border border-border hover:border-cyan-300 hover:bg-cyan-50 transition group">
+                <Tags size={24} className="text-muted-foreground group-hover:text-cyan-600" />
+                <span className="text-sm font-medium text-foreground group-hover:text-cyan-600 text-center">Store Products</span>
+              </Link>
+              <Link href="/dashboard/settings" className="flex flex-col items-center gap-2 p-4 rounded-xl border border-border hover:border-violet-300 hover:bg-violet-50 transition group">
+                <Settings size={24} className="text-muted-foreground group-hover:text-violet-600" />
+                <span className="text-sm font-medium text-foreground group-hover:text-violet-600 text-center">Store Settings</span>
               </Link>
             </>)}
             {user?.role === 'doctor' && (<>

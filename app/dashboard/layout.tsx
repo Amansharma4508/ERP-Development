@@ -7,7 +7,7 @@ import Link from 'next/link';
 import {
   LayoutDashboard, HeartPulse, CalendarDays, Wallet, Stethoscope,
   Package, ShoppingCart, BookOpen, Menu, LogOut, Cross,
-  Truck, Users, Warehouse, MapPin, ReceiptText, LayoutGrid, Building2, CreditCard, UserPlus,
+  Truck, Users, Warehouse, MapPin, ReceiptText, LayoutGrid, Building2, CreditCard, UserPlus, ShoppingBag,FileText,
   User, Settings, ChevronDown
 } from 'lucide-react';
 
@@ -20,8 +20,14 @@ const NAV_ALL = [
   { name: 'Users',          href: '/dashboard/admin-panel/users',                 Icon: User,            roles: ['admin','support'] },
   { name: 'Doctors',        href: '/dashboard/doctors',               Icon: Stethoscope,     roles: ['user','support'] },
   { name: 'Doctors',        href: '/dashboard/admin-panel/doctors',               Icon: Stethoscope,     roles: ['admin','support'] },
-  { name: 'My Patients',    href: '/dashboard/doctor-panel',            Icon: Users,           roles: ['doctor','support'] },
-  // { name: 'Inventory',      href: '/dashboard/inventory',             Icon: Package,         roles: ['doctor','admin','support'] },
+  { name: 'Patients',    href: '/dashboard/doctor-panel',            Icon: Users,           roles: ['doctor','support'] },
+{ name: 'Quick Shop',     href: '/dashboard/user-panel/shop',                  Icon: ShoppingBag,     roles: ['user'] },
+  { name: 'My Orders',      href: '/dashboard/user-panel/orders',                Icon: ShoppingCart,    roles: ['user'] },
+  { name: 'Prescriptions',  href: '/user-panel/prescriptions',         Icon: FileText,        roles: ['user','support'] }, 
+  { name: 'Medicines',     href: '/dashboard/doctor-panel/prescriptions/new',                  Icon: ShoppingBag,     roles: ['doctor'] },
+  { name: 'Patient Prescription Order Flow',     href: '/dashboard/user-panel/prescription-order',                  Icon: ShoppingBag,     roles: ['user'] },
+  { name: 'Products',     href: '/dashboard/ecommerce-panel/products',                  Icon: ShoppingBag,     roles: ['ecommerce'] },
+
   // { name: 'Orders',         href: '/dashboard/orders',                Icon: ShoppingCart,    roles: ['doctor','admin','support'] },
   // { name: 'Accounting',     href: '/dashboard/accounting',            Icon: BookOpen,        roles: ['admin','support'] },
   { name: 'Wallet Control', href: '/dashboard/admin-panel/wallet-control',      Icon: LayoutGrid,      roles: ['admin','support'] },
