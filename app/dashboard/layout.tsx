@@ -12,8 +12,8 @@ import {
 } from 'lucide-react';
 
 const NAV_ALL = [
-  { name: 'Dashboard',        href: '/dashboard',                     Icon: LayoutDashboard, roles: ['user','doctor','admin','logistics','support'] },
-  { name: 'Health Records', href: '/dashboard/health',                Icon: HeartPulse,      roles: ['user','support'] },
+  { name: 'Dashboard',        href: '/dashboard',                     Icon: LayoutDashboard, roles: ['user','doctor','admin','logistics','support','ecommerce'] },
+  { name: 'Health Records', href: '/dashboard/user-panel/health',                Icon: HeartPulse,      roles: ['user','support'] },
   { name: 'Appointments',   href: '/dashboard/appointments',          Icon: CalendarDays,    roles: ['user'] },
   { name: 'Appointments',   href: '/dashboard/doctor-panel/appointments',          Icon: CalendarDays,    roles: ['doctor','support'] },
   { name: 'Wallet',         href: '/dashboard/wallet',                Icon: Wallet,          roles: ['user','support'] },
@@ -22,11 +22,15 @@ const NAV_ALL = [
   { name: 'Doctors',        href: '/dashboard/admin-panel/doctors',               Icon: Stethoscope,     roles: ['admin','support'] },
   { name: 'Patients',    href: '/dashboard/doctor-panel',            Icon: Users,           roles: ['doctor','support'] },
 { name: 'Quick Shop',     href: '/dashboard/user-panel/shop',                  Icon: ShoppingBag,     roles: ['user'] },
-  { name: 'My Orders',      href: '/dashboard/user-panel/orders',                Icon: ShoppingCart,    roles: ['user'] },
-  { name: 'Prescriptions',  href: '/user-panel/prescriptions',         Icon: FileText,        roles: ['user','support'] }, 
+  { name: 'My Orders',      href: '/dashboard/user-panel/my-order',                Icon: ShoppingCart,    roles: ['user'] },
+  // { name: 'Prescriptions',  href: '/user-panel/prescriptions',         Icon: FileText,        roles: ['user','support'] }, 
   { name: 'Medicines',     href: '/dashboard/doctor-panel/prescriptions/new',                  Icon: ShoppingBag,     roles: ['doctor'] },
   { name: 'Patient Prescription Order Flow',     href: '/dashboard/user-panel/prescription-order',                  Icon: ShoppingBag,     roles: ['user'] },
   { name: 'Products',     href: '/dashboard/ecommerce-panel/products',                  Icon: ShoppingBag,     roles: ['ecommerce'] },
+  { name: 'Stock Management',     href: '/dashboard/ecommerce-panel/stock',                  Icon: ShoppingBag,     roles: ['ecommerce'] },
+  { name: 'Warehouse Management',     href: '/dashboard/ecommerce-panel/warehouses',                  Icon: ShoppingBag,     roles: ['ecommerce'] },
+  { name: 'Orders',     href: '/dashboard/ecommerce-panel/orders',                  Icon: ShoppingBag,     roles: ['ecommerce'] },
+  { name: 'Returns & Refunds',     href: '/dashboard/ecommerce-panel/returns',                  Icon: ShoppingBag,     roles: ['ecommerce'] },
 
   // { name: 'Orders',         href: '/dashboard/orders',                Icon: ShoppingCart,    roles: ['doctor','admin','support'] },
   // { name: 'Accounting',     href: '/dashboard/accounting',            Icon: BookOpen,        roles: ['admin','support'] },

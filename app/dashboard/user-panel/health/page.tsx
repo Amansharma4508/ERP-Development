@@ -4,14 +4,30 @@ import { useAuth } from '@/lib/auth-context';
 import { useEffect, useState, useCallback } from 'react';
 import {
   Pill, FlaskConical, Stethoscope, Syringe, FileText, Plus,
-  Pencil, Trash2, CheckCircle, XCircle, AlertCircle, X, User, CalendarDays, Droplets,
+  Pencil, Trash2, CheckCircle, XCircle, AlertCircle, X, User, CalendarDays, Droplets, ShoppingCart
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 
+interface AttachedProduct {
+  id: string;
+  name: string;
+  price: number;
+  quantity: number;
+}
+
 interface HealthRecord {
-  id: string; title: string; type: string; doctor: string;
-  date: string; description: string; bloodGroup?: string;
-  allergies?: string[]; notes?: string; createdAt: string;
+  id: string; 
+  title: string; 
+  type: string; 
+  doctor: string;
+  doctor_profession?: string; // Doctor ka profession display karne ke liye
+  date: string; 
+  description: string; 
+  bloodGroup?: string;
+  allergies?: string[]; 
+  notes?: string; 
+  createdAt: string;
+  attached_products?: AttachedProduct[]; // Prescribed medicines list
 }
 
 const TYPE_ICONS: Record<string, LucideIcon> = {
@@ -33,7 +49,7 @@ export default function HealthRecordsPage() {
   const [loading, setLoading] = useState(true);
   const [showAdd, setShowAdd] = useState(false);
   const [editRecord, setEditRecord] = useState<HealthRecord|null>(null);
-  const [form, setForm] = useState({title:'',type:'diagnosis',doctor:'',date:'',description:'',bloodGroup:'',allergies:'',notes:''});
+  const [form, setForm] = useState({title:'',type:'diagnosis',doctor:'',doctor_profession:'',date:'',description:'',bloodGroup:'',allergies:'',notes:''});
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState('');
   const [deleteId, setDeleteId] = useState<string|null>(null);
@@ -54,14 +70,45 @@ export default function HealthRecordsPage() {
 
   useEffect(()=>{fetchRecords();},[fetchRecords]);
 
+  // Handle adding prescribed medicines directly to cart
+  const handleAddToCart = (products: AttachedProduct[]) => {
+    if (!products || products.length === 0) return;
+    // Aapke cart state ya cart API ke mutabiq items add karne ka logic yahan aayega
+    // For example, saving to localStorage or triggering a cart context function
+    const existingCart = JSON.parse(localStorage.getItem('cart') || '[]');
+    
+    products.forEach(prod => {
+      const index = existingCart.findIndex((item: any) => item.id === prod.id);
+      if (index > -1) {
+        existingCart[index].quantity += prod.quantity || 1;
+      } else {
+        existingCart.push({ ...prod, quantity: prod.quantity || 1 });
+      }
+    });
+
+    localStorage.setItem('cart', JSON.stringify(existingCart));
+    showToast('All prescribed medicines added to cart successfully!');
+  };
+
   const openAdd = () => {
     setEditRecord(null);
-    setForm({title:'',type:'diagnosis',doctor:'',date:'',description:'',bloodGroup:'',allergies:'',notes:''});
+    setForm({title:'',type:'diagnosis',doctor:'',doctor_profession:'',date:'',description:'',bloodGroup:'',allergies:'',notes:''});
     setFormError(''); setShowAdd(true);
   };
+
   const openEdit = (r:HealthRecord) => {
     setEditRecord(r);
-    setForm({title:r.title,type:r.type,doctor:r.doctor,date:r.date,description:r.description,bloodGroup:r.bloodGroup||'',allergies:(r.allergies||[]).join(', '),notes:r.notes||''});
+    setForm({
+      title:r.title,
+      type:r.type,
+      doctor:r.doctor,
+      doctor_profession:r.doctor_profession||'',
+      date:r.date,
+      description:r.description,
+      bloodGroup:r.bloodGroup||'',
+      allergies:(r.allergies||[]).join(', '),
+      notes:r.notes||''
+    });
     setFormError(''); setShowAdd(true);
   };
 
@@ -104,8 +151,8 @@ export default function HealthRecordsPage() {
 
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Health Records</h1>
-          <p className="text-muted-foreground text-sm mt-1">Manage your medical history and documents</p>
+          <h1 className="text-2xl font-bold text-foreground">Health Records & Prescriptions</h1>
+          <p className="text-muted-foreground text-sm mt-1">Manage your medical history, prescriptions, and order prescribed medications</p>
         </div>
         <button onClick={openAdd}
           className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-white font-semibold shadow transition hover:opacity-90"
@@ -142,38 +189,69 @@ export default function HealthRecordsPage() {
           {filtered.map(r=>{
             const Icon = TYPE_ICONS[r.type] || FileText;
             return (
-              <div key={r.id} className="bg-card border border-border rounded-2xl p-5 hover:border-cyan-200 transition group animate-fade-in-up">
-                <div className="flex items-start justify-between gap-3 mb-3">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-cyan-50 flex-shrink-0">
-                      <Icon size={18} className="text-cyan-600"/>
+              <div key={r.id} className="bg-card border border-border rounded-2xl p-5 hover:border-cyan-200 transition group animate-fade-in-up flex flex-col justify-between">
+                <div>
+                  <div className="flex items-start justify-between gap-3 mb-3">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-cyan-50 flex-shrink-0">
+                        <Icon size={18} className="text-cyan-600"/>
+                      </div>
+                      <div>
+                        <h3 className="font-semibold text-foreground text-sm">{r.title}</h3>
+                        <span className={`inline-block text-xs font-medium px-2 py-0.5 rounded-full border mt-0.5 ${TYPE_COLORS[r.type]}`}>
+                          {r.type.replace('_',' ')}
+                        </span>
+                      </div>
                     </div>
-                    <div>
-                      <h3 className="font-semibold text-foreground text-sm">{r.title}</h3>
-                      <span className={`inline-block text-xs font-medium px-2 py-0.5 rounded-full border mt-0.5 ${TYPE_COLORS[r.type]}`}>
-                        {r.type.replace('_',' ')}
-                      </span>
+                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition">
+                      <button onClick={()=>openEdit(r)}
+                        className="w-7 h-7 rounded-lg bg-muted hover:bg-indigo-100 text-muted-foreground hover:text-indigo-600 flex items-center justify-center transition">
+                        <Pencil size={12}/>
+                      </button>
+                      <button onClick={()=>handleDelete(r.id)} disabled={deleteId===r.id}
+                        className="w-7 h-7 rounded-lg bg-muted hover:bg-red-100 text-muted-foreground hover:text-red-600 flex items-center justify-center transition disabled:opacity-50">
+                        <Trash2 size={12}/>
+                      </button>
                     </div>
                   </div>
-                  <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition">
-                    <button onClick={()=>openEdit(r)}
-                      className="w-7 h-7 rounded-lg bg-muted hover:bg-indigo-100 text-muted-foreground hover:text-indigo-600 flex items-center justify-center transition">
-                      <Pencil size={12}/>
-                    </button>
-                    <button onClick={()=>handleDelete(r.id)} disabled={deleteId===r.id}
-                      className="w-7 h-7 rounded-lg bg-muted hover:bg-red-100 text-muted-foreground hover:text-red-600 flex items-center justify-center transition disabled:opacity-50">
-                      <Trash2 size={12}/>
-                    </button>
+
+                  <p className="text-sm text-muted-foreground line-clamp-2 mb-3">{r.description}</p>
+                  
+                  {/* Doctor Info with Profession */}
+                  <div className="flex flex-wrap gap-3 text-xs text-muted-foreground mb-3 bg-muted/50 p-2.5 rounded-xl border border-border/50">
+                    <span className="flex items-center gap-1 font-medium text-foreground">
+                      <User size={12} className="text-cyan-600"/> 
+                      {r.doctor || 'Unknown Doctor'} 
+                      {r.doctor_profession && <span className="text-muted-foreground font-normal">({r.doctor_profession})</span>}
+                    </span>
+                    <span className="flex items-center gap-1"><CalendarDays size={11}/> {r.date}</span>
+                    {r.bloodGroup && <span className="flex items-center gap-1"><Droplets size={11}/> {r.bloodGroup}</span>}
                   </div>
+
+                  {/* Attached Medicines Section for Prescriptions */}
+                  {r.type === 'prescription' && r.attached_products && r.attached_products.length > 0 && (
+                    <div className="mt-3 p-3 bg-blue-50/50 rounded-xl border border-blue-100 space-y-2">
+                      <p className="text-xs font-bold text-blue-900 uppercase tracking-wider">Prescribed Medicines:</p>
+                      <div className="space-y-1.5 max-h-32 overflow-y-auto">
+                        {r.attached_products.map((med) => (
+                          <div key={med.id} className="flex items-center justify-between text-xs bg-white p-2 rounded-lg border border-blue-100">
+                            <span className="font-medium text-foreground">{med.name} (Qty: {med.quantity})</span>
+                            <span className="text-cyan-700 font-semibold">₹{med.price * med.quantity}</span>
+                          </div>
+                        ))}
+                      </div>
+                      
+                      <button
+                        onClick={() => handleAddToCart(r.attached_products!)}
+                        className="w-full mt-2 bg-cyan-600 hover:bg-cyan-700 text-white text-xs py-2 rounded-lg font-semibold flex items-center justify-center gap-2 transition shadow-sm cursor-pointer">
+                        <ShoppingCart size={14} /> Add All Medicines to Cart
+                      </button>
+                    </div>
+                  )}
                 </div>
-                <p className="text-sm text-muted-foreground line-clamp-2 mb-3">{r.description}</p>
-                <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
-                  <span className="flex items-center gap-1"><User size={11}/> {r.doctor}</span>
-                  <span className="flex items-center gap-1"><CalendarDays size={11}/> {r.date}</span>
-                  {r.bloodGroup && <span className="flex items-center gap-1"><Droplets size={11}/> {r.bloodGroup}</span>}
-                </div>
+
                 {r.allergies && r.allergies.length>0 && (
-                  <div className="flex flex-wrap gap-1 mt-2">
+                  <div className="flex flex-wrap gap-1 mt-3">
                     {r.allergies.map(a=>(
                       <span key={a} className="px-2 py-0.5 bg-red-50 text-red-600 text-xs rounded-full border border-red-200">{a}</span>
                     ))}
@@ -212,9 +290,14 @@ export default function HealthRecordsPage() {
                   <input type="date" value={form.date} onChange={e=>setForm({...form,date:e.target.value})} required
                     className="w-full px-3 py-2.5 rounded-xl border border-border bg-muted text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring"/>
                 </div>
-                <div className="col-span-2">
-                  <label className="block text-sm font-medium text-foreground mb-1.5">Doctor / Source</label>
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-1.5">Doctor Name</label>
                   <input value={form.doctor} onChange={e=>setForm({...form,doctor:e.target.value})} placeholder="Dr. John Smith"
+                    className="w-full px-3 py-2.5 rounded-xl border border-border bg-muted text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring"/>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-1.5">Doctor Profession</label>
+                  <input value={form.doctor_profession} onChange={e=>setForm({...form,doctor_profession:e.target.value})} placeholder="Cardiologist"
                     className="w-full px-3 py-2.5 rounded-xl border border-border bg-muted text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring"/>
                 </div>
                 <div className="col-span-2">

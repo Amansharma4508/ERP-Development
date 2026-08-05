@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/lib/auth-context';
 import { authenticatedFetch } from '@/lib/api';
-import { Package, Plus, Store, X, Layers } from 'lucide-react';
+import { Package, Plus, Store, X, Layers, UploadCloud } from 'lucide-react';
 
 interface Product {
   id: string;
@@ -31,6 +31,7 @@ export default function EcommerceProductsPage() {
   const [isProductModalOpen, setIsProductModalOpen] = useState(false);
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [uploading, setUploading] = useState(false);
 
   // Product Form State
   const [title, setTitle] = useState('');
@@ -118,7 +119,7 @@ export default function EcommerceProductsPage() {
       if (res.ok) {
         setIsCategoryModalOpen(false);
         setCatName(''); setCatDesc('');
-        fetchData(); // Refresh list to include new category
+        fetchData();
       } else {
         alert(data.error || 'Failed to create category');
       }
@@ -126,6 +127,37 @@ export default function EcommerceProductsPage() {
       console.error('Error creating category:', error);
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  // Handle Bulk Excel File Upload (.xlsx)
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !token) return;
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+      setUploading(true);
+      const res = await authenticatedFetch('/api/ecommerce/import-products', token, {
+        method: 'POST',
+        body: formData,
+      });
+      const data = await res.json();
+
+      if (res.ok && data.success) {
+        alert(data.message);
+        fetchData();
+      } else {
+        alert(`Import failed: ${data.error || 'Unknown error'}`);
+      }
+    } catch (err) {
+      console.error('Error uploading file:', err);
+      alert('Something went wrong during bulk upload.');
+    } finally {
+      setUploading(false);
+      e.target.value = ''; // Reset file input
     }
   };
 
@@ -138,10 +170,17 @@ export default function EcommerceProductsPage() {
             <Store className="text-primary" /> Store Products & Inventory
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Manage your store catalog and product categories.
+            Manage catalog, categories, or perform bulk uploads.
           </p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
+          {/* Bulk Import Button */}
+          <label className={`cursor-pointer inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2.5 rounded-xl font-medium shadow transition ${uploading ? 'opacity-50 cursor-not-allowed' : ''}`}>
+            <UploadCloud size={18} />
+            {uploading ? 'Importing Products...' : 'Import File'}
+            <input type="file" accept=".xlsx, .xls, .csv" onChange={handleFileUpload} className="hidden" disabled={uploading} />
+          </label>
+
           <button
             onClick={() => setIsCategoryModalOpen(true)}
             className="inline-flex items-center gap-2 bg-secondary text-secondary-foreground px-4 py-2.5 rounded-xl font-medium shadow hover:opacity-90 transition"
@@ -160,7 +199,7 @@ export default function EcommerceProductsPage() {
       {/* Products Grid */}
       {loading ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {[...Array(3)].map((_, i) => <div key={i} className="skeleton h-48 rounded-2xl" />)}
+          {[...Array(6)].map((_, i) => <div key={i} className="skeleton h-48 rounded-2xl" />)}
         </div>
       ) : products.length > 0 ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -172,8 +211,8 @@ export default function EcommerceProductsPage() {
                 </div>
               )}
               <div className="flex items-start justify-between gap-2">
-                <h3 className="font-semibold text-foreground text-lg">{product.title}</h3>
-                <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+                <h3 className="font-semibold text-foreground text-lg line-clamp-1">{product.title}</h3>
+                <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 whitespace-nowrap">
                   Stock: {product.stock}
                 </span>
               </div>
@@ -188,10 +227,10 @@ export default function EcommerceProductsPage() {
           ))}
         </div>
       ) : (
-        <div className="text-center py-12 bg-card border border-border rounded-2xl">
+        <div className="text-center py-16 bg-card border border-border rounded-2xl">
           <Package size={48} className="mx-auto mb-3 opacity-30 text-muted-foreground" />
           <h3 className="font-semibold text-foreground text-lg">No Products Found</h3>
-          <p className="text-sm text-muted-foreground mt-1">Get started by adding your first product.</p>
+          <p className="text-sm text-muted-foreground mt-1">Upload an Excel file or add products manually.</p>
         </div>
       )}
 
