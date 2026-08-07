@@ -4,45 +4,78 @@ import { useAuth } from '@/lib/auth-context';
 import { useRouter, usePathname } from 'next/navigation';
 import { useEffect, useState, useRef } from 'react';
 import Link from 'next/link';
-import {
-  LayoutDashboard, HeartPulse, CalendarDays, Wallet, Stethoscope,
-  Package, ShoppingCart, BookOpen, Menu, LogOut, Cross,
-  Truck, Users, Warehouse, MapPin, ReceiptText, LayoutGrid, Building2, CreditCard, UserPlus, ShoppingBag,FileText,
-  User, Settings, ChevronDown
+import { 
+  LayoutDashboard, 
+  HeartPulse, 
+  CalendarDays, 
+  Wallet, 
+  Users, 
+  Stethoscope, 
+  Store, 
+  ShoppingCart, 
+  Gift, 
+  FileText, 
+  Package, 
+  Boxes, 
+  Building, 
+  ClipboardList, 
+  RotateCcw, 
+  Tag, 
+  LayoutGrid, 
+  Truck, 
+  Building2, 
+  CreditCard, 
+  Warehouse, 
+  MapPin, 
+  ReceiptText, 
+  UserPlus,
+  Cross,
+  Menu,
+  ChevronDown,
+  Settings,
+  LogOut
 } from 'lucide-react';
 
 const NAV_ALL = [
-  { name: 'Dashboard',        href: '/dashboard',                     Icon: LayoutDashboard, roles: ['user','doctor','admin','logistics','support','ecommerce'] },
-  { name: 'Health Records', href: '/dashboard/user-panel/health',                Icon: HeartPulse,      roles: ['user','support'] },
-  { name: 'Appointments',   href: '/dashboard/appointments',          Icon: CalendarDays,    roles: ['user'] },
-  { name: 'Appointments',   href: '/dashboard/doctor-panel/appointments',          Icon: CalendarDays,    roles: ['doctor','support'] },
-  { name: 'Wallet',         href: '/dashboard/wallet',                Icon: Wallet,          roles: ['user','support'] },
-  { name: 'Users',          href: '/dashboard/admin-panel/users',                 Icon: User,            roles: ['admin','support'] },
-  { name: 'Doctors',        href: '/dashboard/doctors',               Icon: Stethoscope,     roles: ['user','support'] },
-  { name: 'Doctors',        href: '/dashboard/admin-panel/doctors',               Icon: Stethoscope,     roles: ['admin','support'] },
-  { name: 'Patients',    href: '/dashboard/doctor-panel',            Icon: Users,           roles: ['doctor','support'] },
-{ name: 'Quick Shop',     href: '/dashboard/user-panel/shop',                  Icon: ShoppingBag,     roles: ['user'] },
-  { name: 'My Orders',      href: '/dashboard/user-panel/my-order',                Icon: ShoppingCart,    roles: ['user'] },
-  // { name: 'Prescriptions',  href: '/user-panel/prescriptions',         Icon: FileText,        roles: ['user','support'] }, 
-  { name: 'Medicines',     href: '/dashboard/doctor-panel/prescriptions/new',                  Icon: ShoppingBag,     roles: ['doctor'] },
-  { name: 'Patient Prescription Order Flow',     href: '/dashboard/user-panel/prescription-order',                  Icon: ShoppingBag,     roles: ['user'] },
-  { name: 'Products',     href: '/dashboard/ecommerce-panel/products',                  Icon: ShoppingBag,     roles: ['ecommerce'] },
-  { name: 'Stock Management',     href: '/dashboard/ecommerce-panel/stock',                  Icon: ShoppingBag,     roles: ['ecommerce'] },
-  { name: 'Warehouse Management',     href: '/dashboard/ecommerce-panel/warehouses',                  Icon: ShoppingBag,     roles: ['ecommerce'] },
-  { name: 'Orders',     href: '/dashboard/ecommerce-panel/orders',                  Icon: ShoppingBag,     roles: ['ecommerce'] },
-  { name: 'Returns & Refunds',     href: '/dashboard/ecommerce-panel/returns',                  Icon: ShoppingBag,     roles: ['ecommerce'] },
+  // ── Universal ────────────────────────────────────────────────────────────
+  { name: 'Dashboard', href: '/dashboard', Icon: LayoutDashboard, roles: ['user', 'doctor', 'admin', 'logistics', 'support', 'ecommerce'] },
 
-  // { name: 'Orders',         href: '/dashboard/orders',                Icon: ShoppingCart,    roles: ['doctor','admin','support'] },
-  // { name: 'Accounting',     href: '/dashboard/accounting',            Icon: BookOpen,        roles: ['admin','support'] },
-  { name: 'Wallet Control', href: '/dashboard/admin-panel/wallet-control',      Icon: LayoutGrid,      roles: ['admin','support'] },
-  // ── Logistics Panel ──────────────────────────────────────────────────────
-  { name: 'Shipments',        href: '/dashboard/admin-panel/shipments',    Icon: Truck,           roles: ['logistics','admin','support'] },
-  { name: 'Hospital Network', href: '/dashboard/admin-panel/hospitals',    Icon: Building2,       roles: ['logistics','admin','support'] }, 
-  { name: 'Card Fulfillment', href: '/dashboard/admin-panel/card-fulfillment', Icon: CreditCard, roles: ['logistics','admin','support'] }, 
-  { name: 'Warehouses',       href: '/dashboard/admin-panel/warehouses',   Icon: Warehouse,       roles: ['logistics','admin','support'] },
-  { name: 'Team',             href: '/dashboard/admin-panel/team',         Icon: MapPin,          roles: ['logistics','admin','support'] },
-  { name: 'Funds Ledger',     href: '/dashboard/admin-panel/ledger',       Icon: ReceiptText,     roles: ['logistics','admin','support'] },
-  { name: 'Invited Members',  href: '/dashboard/team-members',           Icon: UserPlus,        roles: ['admin','support'] },
+  // ── User / Patient Panel ─────────────────────────────────────────────────
+  { name: 'Health Records', href: '/dashboard/user-panel/health', Icon: HeartPulse, roles: ['user', 'support'] },
+  { name: 'Appointments', href: '/dashboard/appointments', Icon: CalendarDays, roles: ['user'] },
+  { name: 'Wallet', href: '/dashboard/wallet', Icon: Wallet, roles: ['user', 'support'] },
+  { name: 'Doctors', href: '/dashboard/doctors', Icon: Stethoscope, roles: ['user', 'support'] },
+  { name: 'Store Products', href: '/dashboard/user-panel/shop', Icon: Store, roles: ['user'] }, // Renamed from Quick Shop
+  { name: 'My Orders', href: '/dashboard/user-panel/my-order', Icon: ShoppingCart, roles: ['user'] },
+  { name: 'My Rewards', href: '/dashboard/user-panel/rewards', Icon: Gift, roles: ['user'] },
+  { name: 'Prescription Orders', href: '/dashboard/user-panel/prescription-order', Icon: FileText, roles: ['user'] },
+
+  // ── Doctor Panel ─────────────────────────────────────────────────────────
+  { name: 'Appointments', href: '/dashboard/doctor-panel/appointments', Icon: CalendarDays, roles: ['doctor', 'support'] },
+  { name: 'Patients', href: '/dashboard/doctor-panel', Icon: Users, roles: ['doctor', 'support'] },
+  { name: 'Medicines / Rx', href: '/dashboard/doctor-panel/prescriptions/new', Icon: FileText, roles: ['doctor'] },
+
+  // ── E-Commerce Panel ─────────────────────────────────────────────────────
+  { name: 'Products', href: '/dashboard/ecommerce-panel/products', Icon: Package, roles: ['ecommerce'] },
+  { name: 'Stock Management', href: '/dashboard/ecommerce-panel/stock', Icon: Boxes, roles: ['ecommerce'] },
+  { name: 'Warehouse Management', href: '/dashboard/ecommerce-panel/warehouses', Icon: Building, roles: ['ecommerce'] },
+  { name: 'Orders', href: '/dashboard/ecommerce-panel/orders', Icon: ClipboardList, roles: ['ecommerce'] },
+  { name: 'Returns & Refunds', href: '/dashboard/ecommerce-panel/returns', Icon: RotateCcw, roles: ['ecommerce'] },
+  { name: 'Rewards / Offers', href: '/dashboard/ecommerce-panel/coupons', Icon: Tag, roles: ['ecommerce'] },
+
+  // ── Admin Panel ──────────────────────────────────────────────────────────
+  { name: 'Users', href: '/dashboard/admin-panel/users', Icon: Users, roles: ['admin', 'support'] },
+  { name: 'Doctors', href: '/dashboard/admin-panel/doctors', Icon: Stethoscope, roles: ['admin', 'support'] },
+  { name: 'Wallet Control', href: '/dashboard/admin-panel/wallet-control', Icon: LayoutGrid, roles: ['admin', 'support'] },
+  { name: 'Invited Members', href: '/dashboard/team-members', Icon: UserPlus, roles: ['admin', 'support'] },
+
+  // ── Logistics & Operations Panel ─────────────────────────────────────────
+  { name: 'Shipments', href: '/dashboard/admin-panel/shipments', Icon: Truck, roles: ['logistics', 'admin', 'support'] },
+  { name: 'Hospital Network', href: '/dashboard/admin-panel/hospitals', Icon: Building2, roles: ['logistics', 'admin', 'support'] },
+  { name: 'Card Fulfillment', href: '/dashboard/admin-panel/card-fulfillment', Icon: CreditCard, roles: ['logistics', 'admin', 'support'] },
+  { name: 'Warehouses', href: '/dashboard/admin-panel/warehouses', Icon: Warehouse, roles: ['logistics', 'admin', 'support'] },
+  { name: 'Team Hub', href: '/dashboard/admin-panel/team', Icon: MapPin, roles: ['logistics', 'admin', 'support'] },
+  { name: 'Funds Ledger', href: '/dashboard/admin-panel/ledger', Icon: ReceiptText, roles: ['logistics', 'admin', 'support'] },
 ];
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {

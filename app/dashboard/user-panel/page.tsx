@@ -53,32 +53,19 @@ function DashboardContent() {
   const [stats, setStats] = useState<Stats>({});
   const [loading, setLoading] = useState(true);
   const [showWalletSuccess, setShowWalletSuccess] = useState(false);
-  const [walletStatus, setWalletStatus] = useState<string>('none');
 
   useEffect(() => {
     if (searchParams.get('wallet_submitted') === 'true') {
       setShowWalletSuccess(true);
+      
+      const timer = setTimeout(() => {
+        setShowWalletSuccess(false);
+        router.replace('/dashboard', { scroll: false });
+      }, 10000); // 10 seconds
+
+      return () => clearTimeout(timer);
     }
-  }, [searchParams]);
-
-  const fetchWalletStatus = useCallback(async () => {
-    if (!token || user?.role !== 'user') return;
-
-    try {
-      const res = await authenticatedFetch('/api/wallet-dashboard/status', token);
-      const data = await res.json();
-
-      if (res.ok && data.success) {
-        const nextStatus = data.data?.status || 'pending';
-        setWalletStatus(nextStatus);
-        if (nextStatus === 'approved') {
-          setShowWalletSuccess(false);
-        }
-      }
-    } catch (e) {
-      console.error('Wallet status fetch failed:', e);
-    }
-  }, [token, user?.role]);
+  }, [searchParams, router]);
 
   const fetchStats = useCallback(async () => {
     if (!token) return;
@@ -102,9 +89,8 @@ function DashboardContent() {
   useEffect(() => {
     if (token) {
       fetchStats();
-      fetchWalletStatus();
     }
-  }, [token, fetchStats, fetchWalletStatus]);
+  }, [token, fetchStats]);
 
   if (loading) {
     return (
@@ -127,7 +113,7 @@ function DashboardContent() {
   };
 
   const isAdminOrSupport = user?.role === 'admin';
-  const walletApplicationIsActive = user?.role === 'user' && (showWalletSuccess || ['pending', 'submitted', 'in-progress'].includes(walletStatus));
+  const walletApplicationIsActive = user?.role === 'user' && showWalletSuccess;
 
   return (
     <div className="space-y-8 relative">
@@ -147,7 +133,7 @@ function DashboardContent() {
               </div>
             </div>
             <div className="rounded-2xl bg-white/80 px-4 py-3 text-sm font-medium text-emerald-900 border border-emerald-200 shadow-sm">
-              {walletStatus === 'approved' ? 'Approved' : 'In Review'}
+              In Review
             </div>
           </div>
         </div>

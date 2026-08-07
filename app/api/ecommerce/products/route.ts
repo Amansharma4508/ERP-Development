@@ -1,22 +1,20 @@
 import { NextResponse } from 'next/server';
-import { supabaseAdmin } from '@/lib/supabase'; // Make sure path apke project ke hisaab se sahi ho
+import { supabaseAdmin } from '@/lib/supabase';
 
-// 1. GET: Products aur Categories fetch karne ke liye (with pagination for 27k+ rows)
+// 1. GET: Products aur Categories fetch karne ke liye
 export async function GET(request: Request) {
   try {
     const url = new URL(request.url);
     const page = parseInt(url.searchParams.get('page') || '1', 10);
-    const limit = parseInt(url.searchParams.get('limit') || '50', 10); // Default 50 products per page
+    const limit = parseInt(url.searchParams.get('limit') || '50', 10);
     const offset = (page - 1) * limit;
 
-    // Categories fetch karein
     const { data: categories, error: catError } = await supabaseAdmin
       .from('categories')
       .select('*');
 
     if (catError) throw catError;
 
-    // Products fetch karein with pagination (taaki 27,000+ products mein site slow na ho)
     const { data: products, error: prodError, count } = await supabaseAdmin
       .from('products')
       .select('*, categories(name)', { count: 'exact' })
@@ -46,7 +44,7 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { title, description, price, stock, category_id, image_url, seller_id } = body;
+    const { title, description, manufacturer, price, stock, category_id, image_url, seller_id } = body;
 
     const { data, error } = await supabaseAdmin
       .from('products')
@@ -54,6 +52,7 @@ export async function POST(request: Request) {
         {
           title,
           description,
+          manufacturer: manufacturer || null,
           price,
           stock,
           category_id: category_id || null,
@@ -61,7 +60,7 @@ export async function POST(request: Request) {
           seller_id,
         },
       ])
-      .select()
+      .select('*, categories(name)')
       .single();
 
     if (error) throw error;
@@ -79,11 +78,11 @@ export async function POST(request: Request) {
   }
 }
 
-// 3. DELETE: Single ya Multiple products database se delete karne ke liye
+// 3. DELETE: Products delete karne ke liye
 export async function DELETE(request: Request) {
   try {
     const body = await request.json();
-    const { ids } = body; // Array of product IDs
+    const { ids } = body;
 
     if (!ids || !Array.isArray(ids) || ids.length === 0) {
       return NextResponse.json({ success: false, error: 'No product IDs provided' }, { status: 400 });
@@ -103,5 +102,46 @@ export async function DELETE(request: Request) {
   } catch (error: any) {
     console.error('Delete failed:', error);
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+  }
+}
+
+// 4. PUT: Existing product update karne ke liye
+export async function PUT(request: Request) {
+  try {
+    const body = await request.json();
+    const { id, title, description, manufacturer, price, stock, category_id, image_url } = body;
+
+    if (!id) {
+      return NextResponse.json({ success: false, error: 'Product ID is required for update' }, { status: 400 });
+    }
+
+    const { data, error } = await supabaseAdmin
+      .from('products')
+      .update({
+        title,
+        description,
+        manufacturer: manufacturer || null,
+        price,
+        stock,
+        category_id: category_id || null,
+        image_url,
+      })
+      .eq('id', id)
+      .select('*, categories(name)')
+      .single();
+
+    if (error) throw error;
+
+    return NextResponse.json({
+      success: true,
+      product: data,
+      message: 'Product updated successfully',
+    });
+  } catch (error: any) {
+    console.error('Error updating product:', error);
+    return NextResponse.json(
+      { success: false, error: error.message },
+      { status: 500 }
+    );
   }
 }
